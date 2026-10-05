@@ -7,14 +7,16 @@
 #include "lock.h"
 #include "ui_display.h"
 #include "usb_drive.h"
+#include "tools.h"
 
-#include <DNSServer.h>
+#include "captive_dns.h"
 #include <WebServer.h>
 #include <WiFi.h>
 
 static WebServer server(80);
-static DNSServer dns;
+static CaptiveDns dns;
 static String g_ssid;
+static bool g_captiveDns = true;
 
 static uint32_t g_rebootAt = 0;
 
@@ -98,6 +100,27 @@ static void handleState() {
     json += "{\"name\":\"" + jsonEscape(items[i].name) + "\",";
     json += "\"os\":\"" + jsonEscape(items[i].os) + "\"}";
   }
+  json += "],\"activeTool\":\"" + jsonEscape(toolsActiveId()) + "\",";
+  json += "\"startupTool\":\"" + jsonEscape(toolsStartupId()) + "\",\"tools\":[";
+  for (size_t i = 0; i < toolsCount(); ++i) {
+    const ToolPlugin *tool = toolsAt(i);
+    ToolStatus status = toolsStatus(*tool);
+    if (i) json += ",";
+    json += "{\"id\":\"" + jsonEscape(tool->id) + "\",\"name\":\"" + jsonEscape(tool->title) + "\",";
+    json += "\"description\":\"" + jsonEscape(tool->description) + "\",\"running\":" + String(status.running ? 1 : 0) + ",";
+    json += "\"notice\":\"" + jsonEscape(tool->notice ? tool->notice : "") + "\",";
+    json += "\"setupUrl\":\"" + (tool->setupContent ? String("/api/tools/setup?id=") + tool->id : String()) + "\",";
+    json += "\"setupTitle\":\"" + jsonEscape(tool->setupTitle ? tool->setupTitle : "") + "\",";
+    json += "\"setupHint\":\"" + jsonEscape(tool->setupHint ? tool->setupHint : "") + "\",";
+    json += "\"setupManual\":\"" + jsonEscape(tool->setupManual ? tool->setupManual : "") + "\",";
+    json += "\"setupPayloadName\":\"" + jsonEscape(tool->setupPayloadName ? tool->setupPayloadName : "") + "\",";
+    json += "\"state\":\"" + jsonEscape(status.state) + "\",\"message\":\"" + jsonEscape(status.message) + "\",\"details\":[";
+    for (size_t d = 0; d < status.details.size(); ++d) {
+      if (d) json += ",";
+      json += "{\"label\":\"" + jsonEscape(status.details[d].label) + "\",\"value\":\"" + jsonEscape(status.details[d].value) + "\"}";
+    }
+    json += "]}";
+  }
   json += "]}";
 
   sendJson(200, json);
@@ -141,6 +164,7 @@ static void handlePayloadDelete() {
 }
 
 static void handleRun() {
+  if (toolsRunning()) { sendError(409, "Stop the active tool before running a payload"); return; }
   String script = server.arg("script");
   String name = server.arg("name");
   String origin = "editor";
@@ -185,6 +209,34 @@ static void handleRun() {
 static void handleStop() {
   duckyAbort();
   sendJson(200, "{\"ok\":true}");
+}
+
+static void handleToolStart() {
+  String error;
+  if (!toolsStart(server.arg("id"), error)) { sendError(409, error); return; }
+  sendJson(202, "{\"ok\":true}");
+}
+static void handleToolStop() {
+  String id = server.arg("id");
+  if (!id.isEmpty() && id != toolsActiveId()) {
+    if (!toolsFind(id)) { sendError(404, "Tool not found"); return; }
+    sendJson(200, "{\"ok\":true}"); return;
+  }
+  toolsStop();
+  sendJson(200, "{\"ok\":true}");
+}
+static void handleToolStartup() {
+  if (!server.hasArg("id") || (!server.arg("id").isEmpty() && !toolsFind(server.arg("id")))) {
+    sendError(400, "Unknown startup tool"); return;
+  }
+  if (!toolsSetStartup(server.arg("id"))) { sendError(500, "Could not save startup tool"); return; }
+  sendJson(200, "{\"ok\":true}");
+}
+static void handleToolSetup() {
+  const ToolPlugin *tool = toolsFind(server.arg("id"));
+  if (!tool || !tool->setupContent) { sendError(404, "Setup file not found"); return; }
+  server.sendHeader("Content-Disposition", String("attachment; filename=\"") + tool->setupName + "\"");
+  server.send_P(200, "application/octet-stream", tool->setupContent);
 }
 
 // Arms the script as it stands, not a reference to a library entry: the
@@ -602,8 +654,7 @@ static void handleNotFound() {
 void webBegin(const String &ssid) {
   g_ssid = ssid;
 
-  dns.setErrorReplyCode(DNSReplyCode::NoError);
-  dns.start(53, "*", WiFi.softAPIP());
+  if (g_captiveDns) dns.start(WiFi.softAPIP());
 
   server.on("/", HTTP_GET, handleIndex);
   server.on("/api/state", HTTP_GET, handleState);
@@ -612,6 +663,10 @@ void webBegin(const String &ssid) {
   server.on("/api/payload/delete", HTTP_POST, handlePayloadDelete);
   server.on("/api/run", HTTP_POST, handleRun);
   server.on("/api/stop", HTTP_POST, handleStop);
+  server.on("/api/tools/start", HTTP_POST, handleToolStart);
+  server.on("/api/tools/stop", HTTP_POST, handleToolStop);
+  server.on("/api/tools/startup", HTTP_POST, handleToolStartup);
+  server.on("/api/tools/setup", HTTP_GET, handleToolSetup);
   server.on("/api/settings/launch", HTTP_POST, handleLaunchOnPlug);
   server.on("/api/layout", HTTP_POST, handleLayout);
   server.on("/api/log", HTTP_GET, handleLog);
@@ -635,7 +690,7 @@ void webBegin(const String &ssid) {
 }
 
 void webLoop() {
-  dns.processNextRequest();
+  if (g_captiveDns) dns.process();
   server.handleClient();
 
   if (g_rebootAt && millis() >= g_rebootAt) {
@@ -647,4 +702,11 @@ void webEnd() {
   g_rebootAt = 0;
   server.stop();
   dns.stop();
+}
+
+void webSetCaptiveDns(bool enabled) {
+  if (enabled == g_captiveDns) return;
+  g_captiveDns = enabled;
+  dns.stop();
+  if (enabled) dns.start(WiFi.softAPIP());
 }

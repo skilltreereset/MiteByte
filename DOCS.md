@@ -3,9 +3,14 @@
 Everything beyond getting one running. The overview lives in the
 [README](README.md), and the hardware quirks in [NOTES.md](NOTES.md).
 
+The Hotspot Tool feature is versioned **0.5.0-beta.1**. Prerelease tags containing
+a hyphen produce a prerelease download and leave the stable browser flasher
+unchanged; stable version tags update it. The firmware version must match the tag
+without its `v` prefix.
+
 ## Building
 
-Requires ESP32 Arduino core **3.3.0 or later** and USB mode set to
+Uses Python 3, ESP32 Arduino core **3.3.12** and USB mode set to
 **USB-OTG (TinyUSB)**. The "Hardware CDC and JTAG" mode cannot do HID, and
 the sketch refuses to build if you select it.
 
@@ -15,7 +20,7 @@ the sketch refuses to build if you select it.
 arduino-cli config add board_manager.additional_urls \
   https://espressif.github.io/arduino-esp32/package_esp32_index.json
 arduino-cli core update-index
-arduino-cli core install esp32:esp32
+arduino-cli core install esp32:esp32@3.3.12
 arduino-cli lib install "Adafruit GFX Library" "Adafruit ST7735 and ST7789 Library"
 
 ./tools/build.sh
@@ -39,7 +44,7 @@ Library** from the Library Manager.
 
 First flash: hold the button while plugging the dongle in, then release.
 
-After that, unlock the dongle first so its serial interface is visible, then
+After that, unlock the dongle and stop any active USB tool so its serial interface is visible, then
 `./tools/flash.sh` handles flashing. Once the firmware runs, the
 serial port belongs to TinyUSB, which does not implement the DTR/RTS reset
 esptool expects, so the script opens the port at 1200 baud to trigger
@@ -117,6 +122,36 @@ on the first boot after the lockout ends. Factory reset clears both.
 Both gestures, the long-press threshold and the hard-lock count are configurable.
 Neither gesture may contain the other, including identical gestures. Settings
 saved by older firmware with conflicting gestures fall back to `SSSLL` / `SSSSS`.
+
+## Device tools
+
+The Library contains payload scripts and built-in tools. **Wi-Fi Hotspot** shares
+the PC's current internet connection over USB to devices on the dongle's Wi-Fi.
+Select it to start/stop it and see connection status. **Start automatically after
+unlock** is saved separately from armed payloads; startup locks still apply.
+
+The tool reconnects USB as a network adapter and temporarily removes keyboard,
+serial and mass-storage interfaces. Stop it to restore normal USB use. Screen
+lock leaves sharing running; hard lock stops it. Avoid switching during a USB
+drive transfer. While the hotspot runs, open the UI at the dongle's IP address;
+the captive portal no longer intercepts internet DNS.
+
+Windows needs Internet Connection Sharing enabled once. Use the optional
+[Windows companion](tools/windows/README.md) or configure sharing manually.
+**Windows setup → Open setup payload** opens `13-windows-hotspot-setup.txt`
+in the editor. Run it while the tool is stopped to launch the same installer
+through the USB keyboard, with no file transfer. Match the PC keyboard layout,
+wait for installation to succeed, and then start the hotspot. Setup runs only
+when you run or explicitly arm that payload; starting the hotspot does not launch it.
+Administrator approval is required for this Windows configuration.
+An existing sharing connection to another adapter is left unchanged.
+
+The current implementation supports IPv4 NAT and forwards UDP/TCP DNS. It has
+not yet passed physical Windows 10/11 enumeration or end-to-end network tests.
+No measured speed or added-ping figures are available. Games that require
+incoming port mappings may be affected by the extra NAT layer; there is no
+automatic port forwarding. See [device tool architecture](DEVICE_TOOLS.md) for
+adding another compiled-in plugin.
 
 ## Script commands
 
@@ -230,11 +265,14 @@ for the host application and a window to pull the dongle back out.
 | `ui_display.h/.cpp` | ST7735 screen and APA102 LED |
 | `usb_drive.h/.cpp` | Mass storage and card browsing |
 | `usb_mode.h/.cpp` | Storage-only and active USB descriptors |
+| `tools.h/.cpp` | Built-in tool registry, lifecycle and startup preference |
+| `src/tools/` | USB hotspot plugin, DNS forwarding and packet validation |
+| `src/usb_rndis/` | Private TinyUSB application network driver |
 | `lock.h/.cpp`, `lock_validation.cpp` | Gesture states and settings validation |
 | `web_api.h/.cpp` | HTTP server, API, captive portal |
 | `web_assets.h` | Web interface, compiled into the firmware |
 | `partitions.csv` | 16 MB layout, 4 MB app, 7.88 MB filesystem |
-| `tools/` | Build, flash, release and screen rendering scripts |
+| `tools/` | Build, flash, release, screen rendering and Windows companion |
 | `screens/` | Rendered screen images used by the README |
 
 Payloads run in their own FreeRTOS task, which keeps the web server

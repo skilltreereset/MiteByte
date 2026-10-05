@@ -603,6 +603,9 @@ void displayUpdate(const DisplayInfo &info) {
     case DUCKY_ERROR:   state = "FAULT";   color = C_RED; break;
     default:            state = "STANDBY"; color = C_DIM; break;
   }
+  if (!info.toolState.isEmpty()) {
+    state = info.toolState; color = info.toolError ? C_RED : C_CYAN;
+  }
   setField(F_STATE, state, color);
 
   // Second state line, under the run state and echoing its marker: the dot

@@ -6,6 +6,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT/tools/fqbn.sh"
+python3 "$ROOT/tools/build_helpers.py"
 
 OUT="$ROOT/release"
 rm -rf "$OUT"

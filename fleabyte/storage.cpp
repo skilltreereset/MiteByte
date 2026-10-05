@@ -1,160 +1,17 @@
 #include "storage.h"
 #include "config.h"
 #include "ducky.h"
+#include "tools.h"
+#include "generated/windows_setup_payload.h"
+#include "generated/payloads.h"
 #include <esp_mac.h>
 
 #include <FS.h>
 #include <LittleFS.h>
 #include <algorithm>
 
-static const char *DEMO_LAYOUT_TEST =
-  "REM Checks that the selected layout matches the machine's keyboard.\n"
-  "REM Open a text editor BEFORE running this payload.\n"
-  "REM These are the characters that move between AZERTY and QWERTY.\n"
-  "DELAY 500\n"
-  "STRINGLN --- Fleabyte layout test ---\n"
-  "STRINGLN azertyuiop qwertyuiop\n"
-  "STRINGLN AZERTYUIOP QWERTYUIOP\n"
-  "STRINGLN 0123456789\n"
-  "STRINGLN @ # $ % & * ( ) - _ = +\n"
-  "STRINGLN / \\ | [ ] { } < > ^ ~\n"
-  "STRINGLN ! ? : ; , . ' \"\n"
-  "STRINGLN If this line reads correctly, the layout is right.\n";
-
-static const char *DEMO_REFERENCE =
-  "REM Every command the interpreter understands.\n"
-  "REM Running this types the reference out, so open a text editor first.\n"
-  "DELAY 500\n"
-  "STRINGLN == Fleabyte command reference ==\n"
-  "STRINGLN\n"
-  "STRINGLN REM text              a comment, does nothing\n"
-  "STRINGLN META windows|linux|macos   tags this payload, never typed\n"
-  "STRINGLN STRING text           types the text\n"
-  "STRINGLN STRINGLN text         types the text, then Enter\n"
-  "STRINGLN DELAY 500             waits 500 ms\n"
-  "STRINGLN WAIT_FOR_HOST 5000    waits for the host to enumerate\n"
-  "STRINGLN DEFAULTDELAY 50       pause after every line\n"
-  "STRINGLN DEFAULTCHARDELAY 20   pause between characters\n"
-  "STRINGLN LAYOUT <code>          switches layout mid-script\n"
-  "STRINGLN   us fr de ch hu es it pt br se dk jp\n"
-  "STRINGLN REPEAT 3              replays the previous line 3 times\n"
-  "STRINGLN\n"
-  "STRINGLN Named keys:\n"
-  "STRINGLN   ENTER TAB ESC SPACE BACKSPACE DELETE INSERT\n"
-  "STRINGLN   HOME END PAGEUP PAGEDOWN UP DOWN LEFT RIGHT\n"
-  "STRINGLN   MENU CAPSLOCK PRINTSCREEN PAUSE F1 to F12\n"
-  "STRINGLN\n"
-  "STRINGLN Modifiers: CTRL SHIFT ALT GUI ALTGR\n"
-  "STRINGLN   GUI r / CTRL ALT DELETE / CTRL SHIFT ESC\n"
-  "STRINGLN\n"
-  "STRINGLN Only ASCII is typed. Accented characters are skipped\n"
-  "STRINGLN and reported in the run log.\n";
-
-static const char *DEMO_NOTEPAD =
-  "META windows\n"
-  "REM Windows: opens Notepad and writes a line of proof.\n"
-  "DELAY 300\n"
-  "GUI r\n"
-  "DELAY 600\n"
-  "STRING notepad\n"
-  "ENTER\n"
-  "DELAY 1200\n"
-  "STRINGLN Payload executed from Fleabyte.\n"
-  "STRING Test machine only.\n";
-
-static const char *DEMO_URL =
-  "META windows\n"
-  "REM Windows: opens a page in the default browser via the Run dialog.\n"
-  "REM Also a quick layout check: a wrong layout mangles the slashes\n"
-  "REM and dots, and the address fails to resolve.\n"
-  "DELAY 300\n"
-  "GUI r\n"
-  "DELAY 600\n"
-  "STRINGLN https://example.com\n";
-
-static const char *DEMO_LINUX =
-  "META linux\n"
-  "REM Linux/GNOME: opens a terminal and prints a message.\n"
-  "REM CTRL ALT T is the GNOME shortcut; adjust for your desktop.\n"
-  "DELAY 300\n"
-  "CTRL ALT t\n"
-  "DELAY 1500\n"
-  "STRINGLN echo \"Fleabyte - HID test $(date)\"\n";
-
-static const char *DEMO_MACOS =
-  "META macos\n"
-  "REM macOS: opens TextEdit through Spotlight and types a line.\n"
-  "DELAY 300\n"
-  "GUI SPACE\n"
-  "DELAY 800\n"
-  "STRING TextEdit\n"
-  "DELAY 700\n"
-  "ENTER\n"
-  "DELAY 2000\n"
-  "STRINGLN Payload executed from Fleabyte.\n";
-
-static const char *DEMO_TIMING =
-  "REM Shows the timing commands. Open a text editor first.\n"
-  "DELAY 500\n"
-  "STRINGLN -- default speed --\n"
-  "STRINGLN The quick brown fox jumps over the lazy dog.\n"
-  "DEFAULTCHARDELAY 60\n"
-  "STRINGLN -- slowed to 60 ms per character --\n"
-  "STRINGLN The quick brown fox jumps over the lazy dog.\n"
-  "DEFAULTCHARDELAY 0\n"
-  "STRINGLN -- as fast as the host accepts --\n"
-  "STRINGLN The quick brown fox jumps over the lazy dog.\n"
-  "STRINGLN -- REPEAT replays the previous line --\n"
-  "STRING .\n"
-  "REPEAT 30\n"
-  "ENTER\n"
-  "STRINGLN done\n";
-
-static const char *DEMO_IME =
-  "REM Targets whose input mode is not Latin: Russian, Chinese, Korean,\n"
-  "REM Japanese kana. A layout table cannot help there, because with a\n"
-  "REM non-Latin input mode active no key produces an ASCII letter at all.\n"
-  "REM The fix is to switch the host back to Latin input first.\n"
-  "REM\n"
-  "REM GUI SPACE  cycles input languages on Windows 10/11, GNOME, macOS\n"
-  "REM ALT SHIFT  does the same on older Windows setups\n"
-  "REM SHIFT      toggles Chinese/English on most Pinyin IMEs\n"
-  "DELAY 300\n"
-  "GUI SPACE\n"
-  "DELAY 600\n"
-  "LAYOUT us\n"
-  "STRINGLN Latin input restored.\n";
-
-static const char *DEMO_POWERSHELL =
-  "META windows\n"
-  "REM Windows: opens PowerShell and prints a line.\n"
-  "REM The classic smoke test: if this shows up, HID, timing and layout\n"
-  "REM are all working.\n"
-  "DELAY 300\n"
-  "GUI r\n"
-  "DELAY 600\n"
-  "STRING powershell\n"
-  "ENTER\n"
-  "REM PowerShell takes longer to appear than a text editor.\n"
-  "DELAY 2000\n"
-  "STRINGLN echo ok\n";
-
-struct DemoPayload {
-  const char *name;
-  const char *body;
-};
-
-static const DemoPayload DEMOS[] = {
-  {"00-test-layout.txt", DEMO_LAYOUT_TEST},
-  {"01-command-reference.txt", DEMO_REFERENCE},
-  {"10-windows-notepad.txt", DEMO_NOTEPAD},
-  {"11-windows-open-url.txt", DEMO_URL},
-  {"12-windows-powershell.txt", DEMO_POWERSHELL},
-  {"20-linux-terminal.txt", DEMO_LINUX},
-  {"30-macos-textedit.txt", DEMO_MACOS},
-  {"40-timing-demo.txt", DEMO_TIMING},
-  {"50-switch-input-language.txt", DEMO_IME},
-};
+// Default payloads live as files in fleabyte/payloads/ and are embedded by
+// tools/build_helpers.py into generated/payloads.h (SEEDED_PAYLOADS).
 
 bool storageNameIsValid(const String &name) {
   if (name.isEmpty() || name.length() > MAX_NAME_LEN) return false;
@@ -194,11 +51,17 @@ bool storageBegin() {
 
   Settings s = storageLoadSettings();
   if (s.seedVersion < PAYLOAD_SEED_VERSION) {
-    for (const DemoPayload &d : DEMOS) {
-      storageWrite(d.name, d.body);
+    bool seeded = true;
+    for (const SeededPayload &d : SEEDED_PAYLOADS) {
+      if (!storageExists(d.name) && !storageWrite(d.name, d.body)) seeded = false;
     }
-    s.seedVersion = PAYLOAD_SEED_VERSION;
-    storageSaveSettings(s);
+    // The hotspot setup payload is generated from the reviewed Windows installer.
+    if (!storageExists("13-windows-hotspot-setup.txt") &&
+        !storageWrite("13-windows-hotspot-setup.txt", WINDOWS_SHARING_PAYLOAD)) seeded = false;
+    if (seeded) {
+      s.seedVersion = PAYLOAD_SEED_VERSION;
+      storageSaveSettings(s);
+    }
   }
   return true;
 }
@@ -570,6 +433,7 @@ bool storageSaveSettings(const Settings &s) {
 }
 
 void storageResetSettings() {
+  toolsReset();
   LittleFS.remove(SETTINGS_FILE);
   storageArmedClear();
   LittleFS.remove(HARDLOCK_FILE);
@@ -609,4 +473,22 @@ bool storageHardlockArm(uint8_t reinserts) {
   size_t written = f.print(reinserts); // this many subsequent boots stay locked
   f.close();
   return written == (reinserts < 10 ? 1u : 2u);
+}
+
+String storageToolStartupRead() {
+  File f = LittleFS.open("/tool-startup.txt", "r");
+  if (!f || f.size() > 64) return String();
+  return f.readString();
+}
+bool storageToolStartupWrite(const String &id) {
+  const char *path = "/tool-startup.txt", *pending = "/tool-startup.tmp";
+  if (id.isEmpty()) return !LittleFS.exists(path) || LittleFS.remove(path);
+  if (id.length() > 64) return false;
+  File f = LittleFS.open(pending, "w");
+  if (!f) return false;
+  bool written = f.print(id) == id.length();
+  f.close();
+  if (written && LittleFS.rename(pending, path)) return true;
+  LittleFS.remove(pending);
+  return false;
 }

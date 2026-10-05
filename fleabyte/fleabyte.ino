@@ -7,6 +7,7 @@
 #include "usb_drive.h"
 #include "usb_mode.h"
 #include "web_api.h"
+#include "tools.h"
 
 #include "USB.h"
 #include <ESPmDNS.h>
@@ -100,6 +101,7 @@ static void goOnline() {
   }
 
   webBegin(g_ssid);
+  toolsOnline();
 
   // Left up until a device joins, unless the operator would rather not
   // leave the password and a scannable code on show. The button still
@@ -113,11 +115,12 @@ static void goOnline() {
 
 static void goStandby() {
   if (g_duckyBegun) duckyAbort();
+  toolsOffline();
+  usbModeSetActive(false);
   webEnd();
   MDNS.end();
   WiFi.softAPdisconnect(true);
   WiFi.mode(WIFI_OFF);
-  usbModeSetActive(false);
   // Stay in this boot: restarting here would consume one of the configured
   // hard-lock reinsertions before the owner has actually replugged it.
 }
@@ -155,6 +158,7 @@ void setup() {
             g_settings.hardlockEnabled, g_settings.hardlockReinserts,
             g_settings.standbyOnBoot || storageArmedSize() > 0);
   USB.begin(); // also supports builds without automatic CDC/USB startup
+  toolsBegin();
 
   // A payload armed for this boot fires now, still locked and dark. A pending
   // hard lock suppresses it: a hard-locked dongle is inert until recovered.
@@ -196,6 +200,8 @@ void loop() {
   }
 
   webLoop();
+  DuckyStatus payloadStatus = duckyGetStatus();
+  toolsTick(payloadStatus.state == DUCKY_RUNNING || payloadStatus.state == DUCKY_ARMED);
   displayTick();
 
   uint32_t now = millis();
@@ -213,6 +219,12 @@ void loop() {
     info.armed = storageArmedSize() > 0;
     info.clients = WiFi.softAPgetStationNum();
     info.ducky = duckyGetStatus();
+    if (const ToolPlugin *tool = toolsFind(toolsActiveId())) {
+      ToolStatus status = toolsStatus(*tool);
+      info.toolError = status.state == "error";
+      info.toolState = info.toolError ? "TOOL FAULT" : status.state == "waiting" ? "TOOL WAIT" : "TOOL ON";
+      info.sdExposed = false; // tool USB profiles do not expose mass storage
+    }
 
     displaySetWaiting(info.clients == 0);
 

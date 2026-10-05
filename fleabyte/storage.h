@@ -59,6 +59,11 @@ size_t storageArmedSize();
 
 void storageResetSettings();
 
+// Keep tool startup with saved settings, outside the payload directory and
+// beyond the merged firmware image, so updates preserve the preference.
+String storageToolStartupRead();
+bool storageToolStartupWrite(const String &id);
+
 String storageDefaultPassword();
 
 bool storageDeviceNameIsValid(const String &name);

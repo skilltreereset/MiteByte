@@ -1,0 +1,13 @@
+REM Targets whose input mode is not Latin: Russian, Chinese, Korean,
+REM Japanese kana. A layout table cannot help there, because with a
+REM non-Latin input mode active no key produces an ASCII letter at all.
+REM The fix is to switch the host back to Latin input first.
+REM
+REM GUI SPACE  cycles input languages on Windows 10/11, GNOME, macOS
+REM ALT SHIFT  does the same on older Windows setups
+REM SHIFT      toggles Chinese/English on most Pinyin IMEs
+DELAY 300
+GUI SPACE
+DELAY 600
+LAYOUT us
+STRINGLN Latin input restored.

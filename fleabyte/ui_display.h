@@ -12,6 +12,8 @@ struct DisplayInfo {
   bool sdExposed;
   bool armed;   // a script is waiting to fire at the next boot
   DuckyStatus ducky;
+  String toolState;
+  bool toolError = false;
 };
 
 void displayBegin();

@@ -25,6 +25,7 @@ const orientation = [1, 3, 0, 2].map(rot => {
 let locked = false;
 let rejectSecurity = false;
 let rejectHardLock = false, rejectReset = false, confirmAction = true;
+let rejectTool = false, rejectToolStartup = false;
 const settings = {
   startDelay: 0, standbyOnBoot: 1, screenLocked: 0, screen: 1, screenBright: 100,
   led: 1, ledBright: 20, rotation: 1, showAccess: 1, layout: 'us', layouts: [],
@@ -48,11 +49,21 @@ const context = vm.createContext({
     if (path === '/api/log?since=0') value = { seq: 0, text: '' };
     if (path === '/api/settings') value = { ...settings, screenLocked: +locked };
     if (path === '/api/hard-lock') value = { ok: true, hardlockReinserts: 2 };
+    if (path === '/api/tools/start' && !rejectTool) {
+      state.activeTool = body.id; state.tools[0].running = 1;
+      state.tools[0].state = 'waiting'; state.tools[0].message = 'Waiting for PC sharing';
+    }
+    if (path === '/api/tools/stop') { state.activeTool = ''; state.tools[0].running = 0; }
+    if (path === '/api/tools/startup' && !rejectToolStartup) state.startupTool = body.id;
     const failed = (path === '/api/settings/security' && rejectSecurity) ||
       (path === '/api/hard-lock' && rejectHardLock) ||
-      (path === '/api/settings/reset' && rejectReset);
+      (path === '/api/settings/reset' && rejectReset) ||
+      (path === '/api/tools/start' && rejectTool) ||
+      (path === '/api/tools/startup' && rejectToolStartup);
     return { ok: !failed, status: failed ? 400 : 200,
+      text: async () => 'META windows\nREM One-time hotspot setup\n',
       json: async () => failed ? { error: path === '/api/hard-lock' ? 'Flash write failed' :
+        path.startsWith('/api/tools/') ? 'Tool request failed' :
         path === '/api/settings/reset' ? 'Reset failed' : 'Server rejected gestures' } : value };
   },
 });
@@ -142,6 +153,64 @@ assert.equal(get('#wifistatus').textContent, '');
 rejectReset = false;
 
 // Hard lock cancels cleanly, reports persistence failures, and shows recovery.
+state.tools = [{id:'usb-hotspot', name:'Wi-Fi Hotspot', description:'Share PC internet',
+  running:0, state:'stopped', message:'Stopped', details:[{label:'Wi-Fi', value:'FleaByte'}],
+  notice:'Starting reconnects USB', setupUrl:'/api/tools/setup?id=usb-hotspot',
+  setupPayloadName:'13-windows-hotspot-setup.txt'}];
+state.activeTool = ''; state.startupTool = '';
+await vm.runInContext('refresh()', context);
+get('#script').value = 'REM unsaved';
+vm.runInContext("dirty = true; current = 'example.txt'; openTool('usb-hotspot')", context);
+assert.equal(get('#editor').hidden, true);
+assert.equal(get('#toolpanel').hidden, false);
+assert.equal(get('#script').value, 'REM unsaved');
+assert.equal(get('#toolstart').disabled, false);
+assert.equal(get('#toolstop').disabled, true);
+assert.equal(get('#toolsetupdownload').href, '/api/tools/setup?id=usb-hotspot');
+assert.equal(get('#toolsetuppayload').hidden, false);
+assert.equal(get('#toolsetuppayload').disabled, false);
+rejectTool = true;
+await get('#toolstart').onclick();
+assert.equal(get('#toolactionstatus').textContent, 'Tool request failed');
+assert.equal(get('#toolstart').disabled, false);
+rejectTool = false;
+await get('#toolstart').onclick();
+assert.equal(state.activeTool, 'usb-hotspot');
+assert.equal(get('#toolsetuppayload').disabled, true, 'Setup requires the keyboard USB profile');
+assert.equal(get('#toolstop').disabled, false);
+assert.equal(get('#run').disabled, true);
+get('#toolauto').checked = true;
+await get('#toolauto').onchange();
+assert.equal(state.startupTool, 'usb-hotspot');
+rejectToolStartup = true;
+get('#toolauto').checked = false;
+await get('#toolauto').onchange();
+assert.equal(get('#toolauto').checked, true, 'Rejected startup changes restore the saved preference');
+rejectToolStartup = false;
+await vm.runInContext("openPayload('example.txt')", context);
+assert.equal(get('#script').value, 'REM unsaved');
+assert.equal(vm.runInContext('dirty', context), true);
+assert.equal(get('#editor').hidden, false);
+assert.equal(get('#run').disabled, true);
+vm.runInContext("openTool('usb-hotspot')", context);
+await get('#toolstop').onclick();
+assert.equal(get('#run').disabled, false);
+assert.equal(get('#toolstart').disabled, false);
+state.state = 'running';
+await vm.runInContext('refresh()', context);
+assert.equal(get('#toolstart').disabled, true);
+state.state = 'idle';
+await vm.runInContext('refresh()', context);
+
+vm.runInContext("dirty = false; openTool('usb-hotspot')", context);
+await get('#toolsetuppayload').onclick();
+assert.equal(get('#editor').hidden, false);
+assert.equal(get('#toolpanel').hidden, true);
+assert.equal(get('#name').value, '13-windows-hotspot-setup.txt');
+assert.match(get('#script').value, /One-time hotspot setup/);
+assert.equal(calls.some(c => c.path === '/api/payload?name=13-windows-hotspot-setup.txt'), true);
+assert.equal(calls.some(c => c.path === '/api/run'), false, 'Opening setup does not execute it');
+
 calls.length = 0;
 get('#overlay').hidden = true;
 confirmAction = false;
@@ -160,4 +229,4 @@ assert.equal(get('#overlay').hidden, false);
 assert.equal(get('#overlaytitle').textContent, 'Device hard-locked');
 assert.match(get('#newnet').textContent, /Replug 3 times/);
 assert.equal(vm.runInContext('poll', context), false);
-console.log('PASS: disabled screen controls, UI unlock, LED updates, startup switch, reset errors, hard-lock action/errors');
+console.log('PASS: settings/lock controls, tool selection, preserved edits, USB exclusivity, tool errors/startup');

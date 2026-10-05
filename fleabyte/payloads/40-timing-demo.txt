@@ -1,0 +1,15 @@
+REM Shows the timing commands. Open a text editor first.
+DELAY 500
+STRINGLN -- default speed --
+STRINGLN The quick brown fox jumps over the lazy dog.
+DEFAULTCHARDELAY 60
+STRINGLN -- slowed to 60 ms per character --
+STRINGLN The quick brown fox jumps over the lazy dog.
+DEFAULTCHARDELAY 0
+STRINGLN -- as fast as the host accepts --
+STRINGLN The quick brown fox jumps over the lazy dog.
+STRINGLN -- REPEAT replays the previous line --
+STRING .
+REPEAT 30
+ENTER
+STRINGLN done

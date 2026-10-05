@@ -9,11 +9,16 @@ public:
   String() = default;
   String(const std::string &s) : std::string(s) {}
   explicit String(int n) : std::string(std::to_string(n)) {}
+  bool isEmpty() const { return empty(); }
   String substring(size_t start, size_t end = npos) const {
     return substr(start, end == npos ? npos : end - start);
   }
   int indexOf(const String &s) const {
     auto pos = find(s);
+    return pos == npos ? -1 : static_cast<int>(pos);
+  }
+  int lastIndexOf(char c) const {
+    auto pos = rfind(c);
     return pos == npos ? -1 : static_cast<int>(pos);
   }
 };

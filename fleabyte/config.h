@@ -1,7 +1,7 @@
 #pragma once
 #include <Arduino.h>
 
-#define FIRMWARE_VERSION "0.4.1"
+#define FIRMWARE_VERSION "0.5.0-beta.1"
 
 #define AP_SSID_PREFIX     "Fleabyte"
 #define AP_PASSWORD_PREFIX "flea-"
@@ -134,7 +134,7 @@
 #define START_DELAY_MAX 3600
 
 // Bumping this overwrites the bundled example payloads on next boot.
-#define PAYLOAD_SEED_VERSION 7
+#define PAYLOAD_SEED_VERSION 8
 
 #define DEVICE_NAME_DEFAULT "Fleabyte"
 #define DEVICE_NAME_MAX     16

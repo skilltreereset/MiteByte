@@ -84,6 +84,8 @@ main{max-width:880px;margin:0 auto;padding:1.75rem 1.25rem 0}
 /* ---- payload library ---- */
 .layout{display:grid;grid-template-columns:240px 1fr;gap:1rem;align-items:start}
 .files{list-style:none;margin:0;padding:0 .5rem .5rem}
+.files .group{padding:.6rem .4rem .3rem;color:var(--muted);font:600 11px/1 var(--sans);letter-spacing:.05em;text-transform:uppercase}
+.files .group:first-child{padding-top:.2rem}
 .files button{
   width:100%;text-align:left;padding:.55rem .65rem;border-radius:9px;
   font:13px/1.4 var(--mono);color:var(--muted);
@@ -91,6 +93,16 @@ main{max-width:880px;margin:0 auto;padding:1.75rem 1.25rem 0}
 }
 .files button{display:flex;align-items:center;gap:.5rem}
 .files button .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.entrykind{margin-left:auto;flex:none;color:var(--muted);font:11px var(--sans)}
+.tool-details{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:.45rem 1rem;margin:1rem 0}
+.tool-details dt{color:var(--muted);font-size:13px}
+.tool-details dd{margin:0;text-align:right;overflow-wrap:anywhere;font-size:13px}
+.tool-auto{display:flex;align-items:center;gap:.55rem;font-size:13px;margin:1rem 0}
+.tool-auto input{accent-color:var(--accent)}
+.tool-setup{border-top:1px solid var(--line);padding-top:.8rem;margin-top:1rem;font-size:13px;color:var(--muted)}
+.tool-setup summary{cursor:pointer;color:var(--accent);font-weight:500}
+.tool-setup p{margin:.65rem 0}
+.tool-setup a{color:var(--accent)}
 .osicon{width:15px;height:15px;flex:none;opacity:.65}
 .files button[aria-current="true"] .osicon{opacity:1}
 .osicon.spacer{visibility:hidden}
@@ -375,18 +387,18 @@ footer #ver{font:11.5px var(--mono)}
 <!-- ============ main ============ -->
 <main id="view-main">
   <div class="pagehead">
-    <h1>Payloads</h1>
-    <p class="sub">Pick a script and run it on the machine the dongle is plugged into.</p>
+    <h1>Library</h1>
+    <p class="sub">Run a payload or start a device tool.</p>
   </div>
 
   <div class="layout">
     <section class="card">
-      <div class="card-hd"><h2>Library</h2><button class="link" id="new">New</button></div>
+      <div class="card-hd"><h2>On this device</h2><button class="link" id="new">New</button></div>
       <ul class="files" id="list"></ul>
 
     </section>
 
-    <section class="card">
+    <section class="card" id="editor">
       <div class="card-hd">
         <input type="text" class="namefield" id="name" placeholder="payload-name.txt" spellcheck="false" autocapitalize="off">
         <button class="link" id="save">Save</button>
@@ -414,6 +426,28 @@ footer #ver{font:11.5px var(--mono)}
         </div>
       </div>
     </section>
+    <section class="card" id="toolpanel" hidden aria-labelledby="tooltitle">
+      <div class="card-hd"><h2 id="tooltitle"></h2><span class="entrykind">Tool</span></div>
+      <div class="card-bd">
+        <p class="hint" id="tooldescription"></p>
+        <div class="runbar">
+          <button class="btn" id="toolstart">Start</button>
+          <button class="btn ghost stop" id="toolstop" disabled>Stop</button>
+          <span class="status" id="toolstatus" role="status" aria-live="polite">Stopped</span>
+        </div>
+        <p class="hint" id="toolnotice"></p>
+        <dl class="tool-details" id="tooldetails"></dl>
+        <label class="tool-auto"><input type="checkbox" id="toolauto">Start automatically after unlock</label>
+        <p class="status" id="toolactionstatus" role="status"></p>
+        <details class="tool-setup" id="toolsetup" hidden>
+          <summary id="toolsetuptitle">Setup</summary>
+          <p id="toolsetuphint"></p>
+          <p><button class="btn ghost" id="toolsetuppayload" hidden>Open setup payload</button></p>
+          <p><a id="toolsetupdownload" href="#" download>Download setup</a></p>
+          <p id="toolsetupmanual"></p>
+        </details>
+      </div>
+    </section>
   </div>
 
   <section class="card">
@@ -424,7 +458,7 @@ footer #ver{font:11.5px var(--mono)}
 
 <!-- ============ settings ============ -->
 <main id="view-settings" hidden>
-  <button class="back" id="back">&larr; Payloads</button>
+  <button class="back" id="back">&larr; Library</button>
   <div class="pagehead">
     <h1>Settings</h1>
     <p class="hint" id="settingsstatus" role="status"></p>
@@ -656,6 +690,8 @@ const $ = s => document.querySelector(s);
 const list = $('#list'), nameIn = $('#name'), script = $('#script');
 const runBtn = $('#run'), stopBtn = $('#stop'), status = $('#status'), logEl = $('#log');
 let current = null, layout = 'us', dirty = false, poll = true;
+let currentTool = null, toolItems = [], activeTool = '', startupTool = '';
+let payloadBusy = false, toolPending = false, toolStartupPending = false;
 let logSeq = 0, logText = '';
 
 script.addEventListener('input', () => dirty = true);
@@ -735,37 +771,57 @@ const OS_ICON = {
   linux: '<svg class="osicon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 .9C6.2.9 5 2.3 5 4v1.5c0 .7-.3 1.1-.8 1.8C3.3 8.5 2.4 9.9 2.4 11.3c0 1.5 1 2.6 2.1 3.2.4.2.6.5.7.9h5.6c.1-.4.3-.7.7-.9 1.1-.6 2.1-1.7 2.1-3.2 0-1.4-.9-2.8-1.8-4-.5-.7-.8-1.1-.8-1.8V4c0-1.7-1.2-3.1-3-3.1zM6.8 3.4c.4 0 .7.4.7 1s-.3 1-.7 1-.7-.4-.7-1 .3-1 .7-1zm2.4 0c.4 0 .7.4.7 1s-.3 1-.7 1-.7-.4-.7-1 .3-1 .7-1zM8 5.8c.6 0 1.3.4 1.3.8 0 .3-.8.8-1.3.8s-1.3-.5-1.3-.8c0-.4.7-.8 1.3-.8z"/></svg>',
 };
 
-function paintList(items) {
+function paintList(items, tools = []) {
   list.innerHTML = '';
-  if (!items.length) {
+  if (!items.length && !tools.length) {
     list.innerHTML = '<li class="blank">No payloads yet. Create one to get started.</li>';
     return;
   }
-  for (const it of items) {
+  const toolIcon = '<svg class="osicon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M1 5a11 11 0 0 1 14 0M3.5 8a7 7 0 0 1 9 0M6 11a3 3 0 0 1 4 0"/><circle cx="8" cy="14" r=".6" fill="currentColor"/></svg>';
+  const addEntry = (it, isTool) => {
     const li = document.createElement('li');
     const b = document.createElement('button');
-    b.innerHTML = (OS_ICON[it.os] || '<svg class="osicon spacer" viewBox="0 0 16 16"></svg>')
-                + '<span class="nm"></span>';
+    b.innerHTML = (isTool ? toolIcon : OS_ICON[it.os] || '<svg class="osicon spacer" viewBox="0 0 16 16"></svg>')
+                + '<span class="nm"></span><span class="entrykind"></span>';
     b.querySelector('.nm').textContent = it.name;
+    b.querySelector('.entrykind').textContent = isTool ? (it.running ? 'Running' : 'Tool') : 'Payload';
     if (it.os) b.title = it.name + ' \u2014 ' + it.os;
-    b.setAttribute('aria-current', it.name === current);
-    b.onclick = () => openPayload(it.name);
+    b.setAttribute('aria-current', isTool ? it.id === currentTool : !currentTool && it.name === current);
+    b.onclick = () => isTool ? openTool(it.id) : openPayload(it.name);
     li.appendChild(b);
     list.appendChild(li);
-  }
+  };
+  const addGroup = (label, entries, isTool) => {
+    if (!entries.length) return;
+    const hd = document.createElement('li');
+    hd.className = 'group';
+    hd.textContent = label;
+    list.appendChild(hd);
+    for (const it of entries) addEntry(it, isTool);
+  };
+  addGroup('Device tools', tools, true);
+  addGroup('Payloads', items, false);
 }
 
 async function openPayload(n) {
+  if (currentTool && n === current) {
+    currentTool = null; showSelection(); refresh(); return;
+  }
   if (dirty && !confirm('The current payload has unsaved changes. Discard them?')) return;
   const r = await api('/api/payload?name=' + encodeURIComponent(n));
   script.value = await r.text();
   nameIn.value = n;
   current = n;
+  currentTool = null;
+  showSelection();
   dirty = false;
   refresh();
 }
 
 $('#new').onclick = () => {
+  if (dirty && !confirm('The current payload has unsaved changes. Discard them?')) return;
+  currentTool = null;
+  showSelection();
   current = null;
   nameIn.value = '';
   script.value = 'REM New payload\n';
@@ -799,6 +855,81 @@ runBtn.onclick = async () => {
     setBusy(true);
     refresh();
   } catch (e) { status.textContent = e.message; }
+};
+
+/* ---- built-in device tools ---- */
+function showSelection() {
+  $('#editor').hidden = !!currentTool;
+  $('#toolpanel').hidden = !currentTool;
+}
+function openTool(id) {
+  if (!toolItems.some(t => t.id === id)) return;
+  // Keep the editor buffer intact while inspecting a tool.
+  currentTool = id;
+  $('#toolactionstatus').textContent = '';
+  showSelection();
+  paintTool();
+  paintList(lastPayloads, toolItems);
+}
+let lastPayloads = [];
+function paintTool() {
+  const tool = toolItems.find(t => t.id === currentTool);
+  if (!tool) return;
+  $('#tooltitle').textContent = tool.name;
+  $('#tooldescription').textContent = tool.description;
+  $('#toolnotice').textContent = tool.notice || '';
+  $('#toolnotice').hidden = !tool.notice;
+  $('#toolstatus').textContent = tool.message;
+  $('#toolstatus').className = 'status' + (tool.state === 'error' ? ' err' : tool.state === 'sharing' ? ' ok' : '');
+  $('#toolstart').disabled = toolPending || !!tool.running || payloadBusy || (!!activeTool && activeTool !== tool.id);
+  $('#toolstop').disabled = toolPending || !tool.running;
+  if (!toolStartupPending) $('#toolauto').checked = startupTool === tool.id;
+  $('#toolauto').disabled = toolStartupPending;
+  $('#toolsetup').hidden = !tool.setupUrl && !tool.setupPayloadName;
+  $('#toolsetupdownload').hidden = !tool.setupUrl;
+  $('#toolsetupdownload').href = tool.setupUrl || '#';
+  $('#toolsetuptitle').textContent = tool.setupTitle || 'Setup';
+  $('#toolsetuphint').textContent = tool.setupHint || '';
+  $('#toolsetupmanual').textContent = tool.setupManual || '';
+  $('#toolsetuppayload').hidden = !tool.setupPayloadName;
+  $('#toolsetuppayload').disabled = toolPending || payloadBusy || !!activeTool;
+  const details = $('#tooldetails');
+  details.innerHTML = '';
+  for (const item of tool.details || []) {
+    const label = document.createElement('dt'), value = document.createElement('dd');
+    label.textContent = item.label; value.textContent = item.value;
+    details.appendChild(label); details.appendChild(value);
+  }
+}
+async function toolAction(action) {
+  if (!currentTool || toolPending) return;
+  toolPending = true; paintTool();
+  $('#toolactionstatus').textContent = '';
+  try {
+    await api('/api/tools/' + action, form({id:currentTool}));
+    await refresh();
+  } catch (e) { $('#toolactionstatus').textContent = e.message; }
+  finally { toolPending = false; paintTool(); }
+}
+$('#toolstart').onclick = () => toolAction('start');
+$('#toolstop').onclick = () => toolAction('stop');
+$('#toolsetuppayload').onclick = async () => {
+  const tool = toolItems.find(t => t.id === currentTool);
+  if (!tool?.setupPayloadName || toolPending || payloadBusy || activeTool) return;
+  try { await openPayload(tool.setupPayloadName); }
+  catch (e) { $('#toolactionstatus').textContent = e.message; }
+};
+$('#toolauto').onchange = async () => {
+  if (!currentTool || toolStartupPending) return;
+  const previous = startupTool;
+  toolStartupPending = true; paintTool();
+  try {
+    const id = $('#toolauto').checked ? currentTool : '';
+    await api('/api/tools/startup', form({id}));
+    startupTool = id;
+    $('#toolactionstatus').textContent = 'Startup preference saved';
+  } catch (e) { startupTool = previous; $('#toolactionstatus').textContent = e.message; }
+  finally { toolStartupPending = false; paintTool(); }
 };
 stopBtn.onclick = () => { stopBtn.disabled = true; api('/api/stop', form({})); };
 $('#clearlog').onclick = async () => {
@@ -1251,7 +1382,7 @@ $('#reset').onclick = async () => {
 
 /* ---- polling ---- */
 function setBusy(busy) {
-  runBtn.disabled = busy;
+  runBtn.disabled = busy || !!activeTool;
   stopBtn.disabled = !busy;
   $('#delay').disabled = busy;
   $('#dot').className = 'dot ' + (busy ? 'busy' : 'on');
@@ -1260,6 +1391,10 @@ function setBusy(busy) {
 function paintState(s) {
   const armed = s.state === 'armed';
   const busy = armed || s.state === 'running';
+  payloadBusy = busy;
+  activeTool = s.activeTool || '';
+  if (!toolStartupPending) startupTool = s.startupTool || '';
+  toolItems = s.tools || [];
   setBusy(busy);
   $('#host').className = 'host' + (s.hostSeen ? ' ready' : '');
   $('#hostlab').textContent = s.hostSeen ? 'Host ready' : 'No host yet';
@@ -1267,7 +1402,7 @@ function paintState(s) {
   status.className = 'status' + (s.state === 'error' ? ' err' : s.state === 'done' ? ' ok' : '');
   if (armed) status.textContent = 'Starting in ' + s.countdown + ' s';
   else if (s.state === 'running') status.textContent = 'Line ' + s.line + ' of ' + s.total;
-  else status.textContent = s.message || 'Ready';
+  else status.textContent = activeTool ? 'Stop the active tool to run a payload' : s.message || 'Ready';
 
   if (s.layout !== layout || s.arrangement !== arrangement) {
     layout = s.layout;
@@ -1287,7 +1422,8 @@ async function refresh() {
     return;
   }
   try { paintState(s); } catch (e) { console.error('paintState', e); }
-  try { paintList(s.payloads); } catch (e) { console.error('paintList', e); }
+  lastPayloads = s.payloads || [];
+  try { paintList(lastPayloads, toolItems); paintTool(); } catch (e) { console.error('paintList', e); }
   try { paintLaunch(s.armed || 0); } catch (e) { console.error('paintLaunch', e); }
   try { screenLocked = !!s.screenLocked; paintScreenLock(); } catch (e) {}
   pollLog();

@@ -1,0 +1,8 @@
+META windows
+REM Windows: opens a page in the default browser via the Run dialog.
+REM Also a quick layout check: a wrong layout mangles the slashes
+REM and dots, and the address fails to resolve.
+DELAY 300
+GUI r
+DELAY 600
+STRINGLN https://example.com

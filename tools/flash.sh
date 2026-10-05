@@ -4,6 +4,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT/tools/fqbn.sh"
+python3 "$ROOT/tools/build_helpers.py"
 
 find_port() {
   arduino-cli board list --format json 2>/dev/null \

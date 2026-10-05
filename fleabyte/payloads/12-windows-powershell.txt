@@ -1,0 +1,12 @@
+META windows
+REM Windows: opens PowerShell and prints a line.
+REM The classic smoke test: if this shows up, HID, timing and layout
+REM are all working.
+DELAY 300
+GUI r
+DELAY 600
+STRING powershell
+ENTER
+REM PowerShell takes longer to appear than a text editor.
+DELAY 2000
+STRINGLN echo ok

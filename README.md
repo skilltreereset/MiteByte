@@ -1,7 +1,12 @@
 # Fleabyte
 
-Modern BadUSB firmware for the LilyGO T-Dongle S3. Self-hosted web UI,
-twelve keyboard layouts, fully offline.
+Modern firmware for the LilyGO T-Dongle S3. Web UI, 12 layouts, USB storage,
+no cloud. Fork of [FleaByte](https://github.com/b3rt1ng/FleaByte), adding device
+tools, USB-to-Wi-Fi sharing, insertion locking, and LED settings.
+
+**0.5.0-beta.1 — Hotspot Tool beta.** USB internet sharing, Wi-Fi client browsing
+and DNS replies have been verified on one T-Dongle S3 and Windows PC. Sustained
+throughput, gaming latency and broader Windows compatibility remain unmeasured.
 
 ![Fleabyte status screen](screens/screen-idle.png)
 
@@ -10,14 +15,16 @@ long presses (`SSSLL`; long means at least 200 ms by default). Until unlocked,
 the dongle stays dark with Wi-Fi off and exposes only mass storage. Startup standby
 can be disabled in settings; armed boot runs still stay locked and dark. Scan the code on
 its screen to join, open the page, pick the keyboard layout of the machine
-it is plugged into, and run a script. Nothing leaves the device and nothing
-needs installing.
+it is plugged into, and run a script. Payloads and settings stay on the device;
+the editor needs no installation.
 
 ## What it does
 
 * Keystroke scripting with a DuckyScript subset, from a web editor
 * Twelve keyboard layouts, switchable at runtime and mid-script
 * Payload library stored on the dongle, editable from the browser
+* Built-in tools in the same library, with Start/Stop and optional startup after unlock
+* Beta USB-to-Wi-Fi hotspot: share the PC's internet with Wi-Fi devices
 * Wi-Fi join code on the screen, so a phone connects without typing a key
 * Cancellable countdown before a payload starts
 * Host detection, so a payload can wait for the machine instead of guessing
@@ -76,8 +83,20 @@ keeps saved payloads and settings.
   settings and the USB drive
 * [NOTES.md](NOTES.md) collects the hardware quirks worth knowing before
   changing anything
+* [Windows sharing setup](tools/windows/README.md) explains the optional hotspot
+  companion and manual alternative. Windows setup requires administrator approval;
+  performance and broader Windows compatibility still need validation.
+* [DEVICE_TOOLS.md](DEVICE_TOOLS.md) describes the compiled-in plugin interface
+
+## Roadmap
+
+* Default payloads live as files in [`fleabyte/payloads/`](fleabyte/payloads) and
+  are embedded at build time, not written as C constants.
+* **TODO:** a tool to load payloads from the SD card (possible future feature).
 
 ## Credits
+
+Forked from [b3rt1ng/FleaByte](https://github.com/b3rt1ng/FleaByte) (MIT).
 
 Pin assignments and panel initialisation values come from
 [LilyGO's T-Dongle S3 examples](https://github.com/Xinyuan-LilyGO/T-Dongle-S3)
