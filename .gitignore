@@ -1,5 +1,25 @@
+# --- Build output (Arduino / arduino-cli) ---
 build/
 wifi_ducky_s3/build/
 release/
+
+# --- PlatformIO (local build setup, not part of the upstream project) ---
+.pio/
+.pio-core/
+.cache/
+compile_commands.json
+platformio.ini
+# Root PlatformIO partition file; the tracked one is fleabyte/partitions.csv.
+/partitions.csv
+
+# --- Editors / IDE ---
+.vscode/
+
+# --- Python ---
 __pycache__/
 tools/__pycache__/
+*.pyc
+
+# --- OS junk ---
+.DS_Store
+Thumbs.db
