@@ -1,11 +1,14 @@
 
 #include "config.h"
 #include "ducky.h"
+#include "lock.h"
 #include "storage.h"
 #include "ui_display.h"
 #include "usb_drive.h"
+#include "usb_mode.h"
 #include "web_api.h"
 
+#include "USB.h"
 #include <ESPmDNS.h>
 #include <WiFi.h>
 #include <esp_mac.h>
@@ -14,15 +17,12 @@
 #error "Select USB Mode = USB-OTG (TinyUSB): hardware CDC mode cannot do HID."
 #endif
 
+static Settings g_settings;
 static String g_ssid;
 static String g_password;
 static uint32_t g_nextRefresh = 0;
 static uint32_t g_joinUntil = 0;
-static bool g_lastButton = HIGH;
-
 static bool g_joinLatched = true;
-static uint32_t g_buttonDownAt = 0;
-static bool g_resetArmed = false;
 
 // From eFuse: WiFi.softAPmacAddress() returns zeros before softAP() runs.
 static String defaultSsid() {
@@ -51,6 +51,77 @@ static void launchOnPlug(uint16_t startDelay) {
   duckyRun(script, "boot", startDelay);
 }
 
+// HID is brought up at most once, whether that is for an armed boot payload
+// (while still locked) or on unlock.
+static bool g_duckyBegun = false;
+static void ensureDucky() {
+  if (g_duckyBegun) return;
+  g_duckyBegun = true;
+  duckyBegin();
+  duckySetLayout(g_settings.layout);
+  // Register the event handler and initialize HID before exposing it to the
+  // host, so its first keyboard reports are captured too.
+  usbModeSetActive(true);
+}
+
+// A payload armed for the next boot fires here, while the dongle is still
+// LOCKED: no unlock, no screen, no Wi-Fi. HID comes up only because a payload
+// is waiting; an unarmed boot leaves it down. This is the documented "fire
+// after boot", now working under the insertion lock.
+static void launchArmedAtBoot() {
+  if (storageArmedSize() == 0) return;
+  ensureDucky();
+  launchOnPlug(g_settings.startDelay);
+}
+
+// Everything else LOCKED holds back: the access point, the web interface and
+// the normal screen. Called once on the LOCKED -> ONLINE edge.
+static void goOnline() {
+  WiFi.mode(WIFI_AP);
+  WiFi.softAP(g_ssid.c_str(), g_password.c_str(), AP_CHANNEL, 0, AP_MAX_CLIENTS);
+
+  Serial.printf("AP %s -> http://%s\n", g_ssid.c_str(), WiFi.softAPIP().toString().c_str());
+
+  if (MDNS.begin(MDNS_HOST)) {
+    MDNS.addService("http", "tcp", 80);
+  }
+
+  // Lift the lock independently of the saved screen preference.
+  displaySetScreenOn(g_settings.screenOn);
+  displaySetScreenLocked(false);
+  displaySetLedBright(g_settings.ledBright);
+  displaySetLed(g_settings.ledOn);
+  displaySetWaiting(true);
+
+  ensureDucky();
+
+  if (storageWasFormatted()) {
+    duckyLog("== filesystem was reformatted: payloads and settings lost ==");
+  }
+
+  webBegin(g_ssid);
+
+  // Left up until a device joins, unless the operator would rather not
+  // leave the password and a scannable code on show. The button still
+  // reveals them, which needs the dongle in hand.
+  g_joinLatched = g_settings.showAccess;
+  if (g_joinLatched) displayShowJoin(g_ssid, g_password);
+
+  // Any armed payload already fired at boot (launchArmedAtBoot), which clears
+  // the arming, so there is nothing left to launch here.
+}
+
+static void goStandby() {
+  if (g_duckyBegun) duckyAbort();
+  webEnd();
+  MDNS.end();
+  WiFi.softAPdisconnect(true);
+  WiFi.mode(WIFI_OFF);
+  usbModeSetActive(false);
+  // Stay in this boot: restarting here would consume one of the configured
+  // hard-lock reinsertions before the owner has actually replugged it.
+}
+
 void setup() {
   Serial.begin(115200);
 
@@ -64,80 +135,67 @@ void setup() {
                    "payloads and settings have been lost.");
   }
 
-  Settings settings = storageLoadSettings();
-  g_ssid = settings.ssid.isEmpty() ? defaultSsid() : settings.ssid;
-  g_password = settings.password.isEmpty() ? storageDefaultPassword() : settings.password;
+  // Exactly once per boot, before anything reads the lock state.
+  bool hardlockPending = storageHardlockTick();
 
-  WiFi.mode(WIFI_AP);
-  WiFi.softAP(g_ssid.c_str(), g_password.c_str(), AP_CHANNEL, 0, AP_MAX_CLIENTS);
+  g_settings = storageLoadSettings();
+  g_ssid = g_settings.ssid.isEmpty() ? defaultSsid() : g_settings.ssid;
+  g_password = g_settings.password.isEmpty() ? storageDefaultPassword() : g_settings.password;
 
-  Serial.printf("AP %s -> http://%s\n", g_ssid.c_str(), WiFi.softAPIP().toString().c_str());
+  displaySetRotation(g_settings.rotation);
+  displaySetScreenBright(g_settings.screenBright);
+  displaySetScreenOn(g_settings.screenOn); // startup lock keeps it dark
 
-  if (MDNS.begin(MDNS_HOST)) {
-    MDNS.addService("http", "tcp", 80);
-  }
+  // USB begins with storage only. The startup policy below decides whether
+  // to wait in standby, run an armed script quietly, or bring everything up.
+  usbDriveBegin(g_settings.usbDrive, g_settings.deviceName);
 
-  displaySetRotation(settings.rotation);
-  displaySetScreenOn(settings.screenOn);
-  displaySetLed(settings.ledOn);
-  displaySetWaiting(true);
+  lockBegin(g_settings.unlockSequence, g_settings.hardlockSequence,
+            g_settings.longPressMs, hardlockPending,
+            g_settings.hardlockEnabled, g_settings.hardlockReinserts,
+            g_settings.standbyOnBoot || storageArmedSize() > 0);
+  USB.begin(); // also supports builds without automatic CDC/USB startup
 
-  usbDriveBegin(settings.usbDrive, settings.deviceName);
-
-  // USB names are set at compile time in tools/fqbn.sh: the core already
-  // called USB.begin() in app_main(), so USB.productName() here does nothing.
-  duckyBegin();
-  duckySetLayout(settings.layout);
-
-  if (storageWasFormatted()) {
-    duckyLog("== filesystem was reformatted: payloads and settings lost ==");
-  }
-
-  webBegin(g_ssid);
-
-  // Left up until a device joins, unless the operator would rather not
-  // leave the password and a scannable code on show. The button still
-  // reveals them, which needs the dongle in hand.
-  g_joinLatched = settings.showAccess;
-  if (g_joinLatched) displayShowJoin(g_ssid, g_password);
-
-  launchOnPlug(settings.startDelay);
-}
-
-static void handleButton() {
-  bool button = digitalRead(BOOT_PIN);
-  uint32_t now = millis();
-
-  if (g_lastButton == HIGH && button == LOW) {
-    g_buttonDownAt = now;
-    g_resetArmed = false;
-  }
-
-  if (button == LOW && !g_resetArmed && (now - g_buttonDownAt) >= FACTORY_RESET_HOLD_MS) {
-
-    g_resetArmed = true;
-    displayShowMessage("FACTORY RESET", "restoring defaults");
-    storageResetSettings();
-    delay(1200);
-    ESP.restart();
-  }
-
-  if (g_lastButton == LOW && button == HIGH) {
-    if (!g_resetArmed) {
-
-      displayWake();
-      displayShowJoin(g_ssid, g_password);
-      g_joinUntil = now + 8000;
-    }
-    g_resetArmed = false;
-  }
-
-  g_lastButton = button;
+  // A payload armed for this boot fires now, still locked and dark. A pending
+  // hard lock suppresses it: a hard-locked dongle is inert until recovered.
+  if (!hardlockPending) launchArmedAtBoot();
+  // An armed run remains quiet even with standby disabled. Only an ordinary
+  // unarmed boot can start online automatically; hard lock always wins.
+  if (!lockIsLocked()) goOnline();
 }
 
 void loop() {
+  LockEvent ev = lockTick();  // every mode, every iteration
+
+  switch (ev) {
+    case LOCK_EVT_UNLOCKED:
+      goOnline();
+      break;
+    case LOCK_EVT_HARD_LOCKED:
+      goStandby();
+      break;
+    case LOCK_EVT_TAP_ONLINE: {
+      // A short press while ONLINE pulls up the QR/credentials screen for a
+      // few seconds. displayShowJoin() only repaints if it is not already the
+      // screen on show, so repeated taps no longer re-clear and flicker it;
+      // they just extend the window.
+      displayWake();
+      displayShowJoin(g_ssid, g_password);
+      g_joinUntil = millis() + 8000;
+      break;
+    }
+    default:
+      break;
+  }
+
+  // LOCKED: nothing else runs, mass storage only. SCREEN_LOCK keeps the
+  // radio, HID and web going below, same as fully ONLINE.
+  if (lockIsLocked()) {
+    delay(2);
+    return;
+  }
+
   webLoop();
-  handleButton();
   displayTick();
 
   uint32_t now = millis();

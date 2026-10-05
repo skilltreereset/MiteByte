@@ -28,6 +28,7 @@ body{
 }
 h1{font-size:28px;font-weight:600;letter-spacing:-.02em;margin:0}
 h2{font-size:16px;font-weight:600;letter-spacing:-.01em;margin:0}
+h3{font-size:14.5px;font-weight:600;margin:0}
 p.sub{margin:.3rem 0 0;color:var(--muted);font-size:14px;max-width:56ch}
 button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
@@ -62,6 +63,8 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 }
 .iconbtn:hover{background:#F0F0EB;color:var(--ink)}
 .iconbtn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7}
+.iconbtn.active{background:var(--accent);color:#fff}
+.iconbtn.active:hover{background:var(--accent-hover);color:#fff}
 
 main{max-width:880px;margin:0 auto;padding:1.75rem 1.25rem 0}
 .pagehead{margin-bottom:1.25rem}
@@ -163,6 +166,18 @@ pre{
 }
 
 /* ---- settings ---- */
+.settings-heading{margin:1.5rem 0 .75rem}
+.settings-part{margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line)}
+.hint{font-size:12.5px;color:var(--muted);margin:.4rem 0 0}
+.details{margin-top:.8rem;color:var(--muted);font-size:12.5px}
+.details summary{cursor:pointer;width:fit-content;padding:.25rem 0}
+.details p{margin:.4rem 0 0;max-width:62ch}
+.lock-notice{display:flex;align-items:center;justify-content:space-between;gap:.75rem;
+  flex-wrap:wrap;margin:.8rem 0;padding:.65rem .8rem;border-radius:10px;background:var(--accent-soft)}
+.lock-notice .hint{margin:0;color:var(--ink)}
+.lock-notice .btn{padding:.4rem .75rem;font-size:13px;background:var(--card)}
+.field input[type="number"]{width:8rem;max-width:100%;background:var(--bg);color:var(--ink);
+  border:1px solid var(--line);border-radius:10px;padding:.65rem .8rem;font:14.5px var(--sans)}
 .back{display:inline-flex;align-items:center;gap:.4rem;color:var(--muted);font-size:14px;margin-bottom:1rem;padding:.3rem .5rem;border-radius:8px}
 .back:hover{background:#F0F0EB;color:var(--ink)}
 .preview{display:flex;justify-content:center;margin:1.1rem 0 .3rem}
@@ -224,6 +239,19 @@ pre{
 }
 .switch[aria-checked="true"]::after{transform:translateX(19px)}
 
+.slide{
+  display:flex;align-items:center;gap:.75rem;
+  padding:.35rem 0 .85rem;border-top:none;
+}
+.slide .lab{font-size:14.5px;flex:none;min-width:9.5rem}
+.slide input[type=range]{
+  flex:1;min-width:0;accent-color:var(--accent);height:1.4rem;
+}
+.slide .pct{
+  width:3.2ch;flex:none;font:13px var(--mono);color:var(--muted);
+  text-align:right;font-variant-numeric:tabular-nums;
+}
+
 .orient{display:grid;grid-template-columns:repeat(4,1fr);gap:.6rem;margin-top:.9rem}
 .orient button{
   padding:.8rem .4rem .6rem;border-radius:11px;
@@ -233,6 +261,7 @@ pre{
 }
 .orient button:hover{border-color:#CFD6CF}
 .orient button[aria-checked="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--ink)}
+.orient button:disabled,.switch:disabled,input[type=range]:disabled{opacity:.45;cursor:not-allowed}
 .glyph{
   border:1.5px solid var(--faint);border-radius:3px;position:relative;background:#fff;
 }
@@ -285,7 +314,7 @@ select.sel:focus{outline:none;border-color:var(--accent);background:#fff}
 .field input[type="text"]:focus,.field input[type="password"]:focus{
   outline:none;border-color:var(--accent);background:#fff;
 }
-.field .hint{font-size:12.5px;color:var(--faint);margin-top:.35rem}
+.field .hint{font-size:12.5px;color:var(--muted);margin-top:.35rem}
 .field .hint code{font:11.5px var(--mono);background:var(--bg);border:1px solid var(--line);
   border-radius:5px;padding:.05rem .3rem;color:var(--muted)}
 .reveal{display:flex;align-items:center;gap:.4rem;margin-top:.5rem;font-size:13px;color:var(--muted)}
@@ -315,6 +344,14 @@ footer #ver{font:11.5px var(--mono)}
   h1{font-size:24px}
   main{padding-top:1.25rem}
 }
+@media (max-width:480px){
+  .slide{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.4rem .75rem}
+  .slide .lab{grid-column:1 / -1;min-width:0}
+  .slide input[type=range]{width:100%}
+}
+@media (max-width:360px){
+  .orient{grid-template-columns:repeat(2,1fr)}
+}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -326,6 +363,9 @@ footer #ver{font:11.5px var(--mono)}
     <button class="chip armed" id="armedchip" hidden
             title="A script is armed to fire at the next plug-in">ARMED</button>
     <button class="chip" id="layoutchip" title="Keyboard layout">AZERTY</button>
+    <button class="iconbtn" id="lockdisplay" aria-label="Lock screen" title="Lock screen; Wi-Fi and keyboard stay on">
+      <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+    </button>
     <button class="iconbtn" id="gear" aria-label="Settings">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a7.7 7.7 0 0 0 0-3l1.7-1.3-1.8-3.1-2 .8a7.7 7.7 0 0 0-2.6-1.5L14.4 3h-3.6l-.3 2.4a7.7 7.7 0 0 0-2.6 1.5l-2-.8L4 9.2l1.7 1.3a7.7 7.7 0 0 0 0 3L4 14.8l1.8 3.1 2-.8a7.7 7.7 0 0 0 2.6 1.5l.3 2.4h3.6l.3-2.4a7.7 7.7 0 0 0 2.6-1.5l2 .8 1.8-3.1z"/></svg>
     </button>
@@ -369,7 +409,7 @@ footer #ver{font:11.5px var(--mono)}
         <div class="bootbar">
           <button class="btn ghost boot" id="armboot">Fire after boot</button>
           <span class="bootstate" id="bootstate">Off</span>
-          <span class="boothint">Arms the script above exactly as it stands.
+          <span class="boothint">Arms one run on the next plug-in, with screen and Wi-Fi off. Hard lock blocks it.
           Begin it with <code>WAIT_FOR_HOST</code>, or set a start delay.</span>
         </div>
       </div>
@@ -387,72 +427,19 @@ footer #ver{font:11.5px var(--mono)}
   <button class="back" id="back">&larr; Payloads</button>
   <div class="pagehead">
     <h1>Settings</h1>
+    <p class="hint" id="settingsstatus" role="status"></p>
   </div>
 
+  <section class="settings-group" id="settings-device" aria-labelledby="device-title">
+    <h2 class="settings-heading" id="device-title">Device</h2>
   <section class="card">
     <div class="card-bd" style="padding-top:1.15rem">
-      <h2>Keyboard layout</h2>
-      <p class="sub">The dongle sends key positions, not letters. Match this to the keyboard of the machine it is plugged into, or your payload types gibberish.</p>
-      <div class="preview"><span class="caps" id="caps"></span></div>
-      <div class="lchoices" role="radiogroup" aria-label="Keyboard layout" id="lchoices"></div>
-    </div>
-  </section>
-
-  <section class="card">
-    <div class="card-bd" style="padding-top:1.15rem">
-      <h2>Display and light</h2>
-      <p class="sub">Orientation, backlight and the status LED on the dongle itself.</p>
-
-      <div class="orient" role="radiogroup" aria-label="Screen orientation">
-        <button role="radio" aria-checked="false" data-rot="1"><span class="glyph land"></span>Landscape</button>
-        <button role="radio" aria-checked="false" data-rot="3"><span class="glyph land flip"></span>Flipped</button>
-        <button role="radio" aria-checked="false" data-rot="0"><span class="glyph port"></span>Portrait</button>
-        <button role="radio" aria-checked="false" data-rot="2"><span class="glyph port flip"></span>Flipped</button>
-      </div>
-
-      <div class="row" style="margin-top:1.1rem">
-        <span class="lab">Screen<small>Tapping the button on the dongle lights it up for a few seconds either way.</small></span>
-        <button class="switch" id="screensw" role="switch" aria-checked="true" aria-label="Screen"></button>
-      </div>
-
-      <div class="row">
-        <span class="lab">Show credentials at startup<small>The join screen displays the password and a scannable code until a device connects. The button on the dongle reveals them either way.</small></span>
-        <button class="switch" id="accesssw" role="switch" aria-checked="true" aria-label="Show credentials at startup"></button>
-      </div>
-
-      <div class="row">
-        <span class="lab">Status LED<small>Reports what the dongle is doing. The colours are fixed so a glance is enough.</small></span>
-        <button class="switch" id="ledsw" role="switch" aria-checked="true" aria-label="Status LED"></button>
-      </div>
-
-      <div id="ledlegend">
-        <div class="legend">
-          <div><i class="pulse" style="background:#E5484D"></i>Waiting for a device, slow</div>
-          <div><i style="background:#0028C8"></i>Standby</div>
-          <div><i class="pulse fast" style="background:#E5484D"></i>Payload running, fast</div>
-          <div><i style="background:#00C83C"></i>Finished, 5 s</div>
-          <div><i style="background:#E5484D"></i>Error, steady 5 s</div>
-        </div>
-      </div>
-
-      <div class="runbar">
-        <button class="btn" id="savedisplay">Apply</button>
-        <span class="status" id="dispstatus"></span>
-      </div>
-    </div>
-  </section>
-
-  <section class="card">
-    <div class="card-bd" style="padding-top:1.15rem">
-      <h2>Device name</h2>
-      <p class="sub">Shown on the dongle's screen, and used as the drive's
-      model name so a payload can find it. On Linux it turns up in
-      <code>/dev/disk/by-id/</code> and under <code>lsblk -o MODEL</code>.</p>
+      <h3>Device name</h3>
+      <p class="sub">Shown on the screen and used to identify the USB drive.</p>
       <div class="field">
-        <label for="devname">Name</label>
+        <label for="devname">Device name</label>
         <input type="text" id="devname" maxlength="16" spellcheck="false" autocapitalize="off">
-        <div class="hint">Up to 16 characters. The screen updates at once;
-        the drive's model name changes the next time the dongle is plugged in.</div>
+        <div class="hint">Up to 16 characters. The USB name updates on the next plug-in.</div>
       </div>
       <div class="runbar">
         <button class="btn" id="savename">Save name</button>
@@ -463,14 +450,22 @@ footer #ver{font:11.5px var(--mono)}
 
   <section class="card">
     <div class="card-bd" style="padding-top:1.15rem">
-      <h2>USB drive</h2>
-      <p class="sub">Presents the microSD card to the machine as a removable
-      drive, alongside the keyboard. The reader itself is always advertised;
-      this decides whether it reports a card.</p>
+      <h3>Keyboard layout</h3>
+      <p class="sub">Match the keyboard layout of the connected computer. Changes save automatically.</p>
+      <div class="preview"><span class="caps" id="caps"></span></div>
+      <div class="lchoices" role="radiogroup" aria-label="Keyboard layout" id="lchoices"></div>
+      <p class="hint" id="layoutstatus" role="status"></p>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-bd" style="padding-top:1.15rem">
+      <h3>USB drive</h3>
+      <p class="sub">Share the microSD card with the connected computer.</p>
 
       <div class="row" style="margin-top:.6rem">
-        <span class="lab">Expose the card<small id="drivehint">Checking the slot...</small></span>
-        <button class="switch" id="drivesw" role="switch" aria-checked="false" aria-label="Expose the card"></button>
+        <span class="lab">Share card over USB<small id="drivehint">Checking for a card…</small></span>
+        <button class="switch" id="drivesw" role="switch" aria-checked="false" aria-label="Share card over USB"></button>
       </div>
       <span class="status" id="drivestatus" style="margin-left:0"></span>
 
@@ -482,11 +477,74 @@ footer #ver{font:11.5px var(--mono)}
       <div class="sdlist" id="sdlist"></div>
     </div>
   </section>
+  </section>
 
-  <section class="card">
+  <section class="card settings-group" id="settings-display" aria-labelledby="display-title">
     <div class="card-bd" style="padding-top:1.15rem">
-      <h2>Wi-Fi network</h2>
-      <p class="sub">This is the network the dongle creates. Changing it restarts the device, so you will need to join the new network to get back here.</p>
+      <h2 id="display-title">Display &amp; LED</h2>
+
+      <div class="lock-notice" id="screenlocknotice" hidden>
+        <p class="hint" id="screenlockhint" role="status" hidden>Unlock to change screen settings.</p>
+        <button class="btn ghost" id="unlockscreen" hidden>Unlock screen</button>
+      </div>
+
+      <div class="orient" role="radiogroup" aria-label="Screen orientation">
+        <button role="radio" aria-checked="false" data-rot="1"><span class="glyph land"></span>Landscape</button>
+        <button role="radio" aria-checked="false" data-rot="3" aria-label="Landscape flipped"><span class="glyph land flip"></span>Flipped</button>
+        <button role="radio" aria-checked="false" data-rot="0"><span class="glyph port"></span>Portrait</button>
+        <button role="radio" aria-checked="false" data-rot="2" aria-label="Portrait flipped"><span class="glyph port flip"></span>Flipped</button>
+      </div>
+
+      <div class="row" style="margin-top:1.1rem">
+        <span class="lab">Screen<small>When unlocked, tap the device button to wake it briefly.</small></span>
+        <button class="switch" id="screensw" role="switch" aria-checked="true" aria-label="Screen"></button>
+      </div>
+      <div class="slide">
+        <span class="lab">Screen brightness</span>
+        <input type="range" id="screenbright" min="0" max="100" value="100" aria-label="Screen brightness">
+        <span class="pct" id="screenbrightval">100</span>
+      </div>
+
+      <div class="row">
+        <span class="lab">Show Wi-Fi login at startup<small>Show the password and QR code until a device connects.</small></span>
+        <button class="switch" id="accesssw" role="switch" aria-checked="true" aria-label="Show Wi-Fi login at startup"></button>
+      </div>
+
+      <div class="settings-part">
+      <h3>Status LED</h3>
+      <div class="row">
+        <span class="lab">Enable LED<small>Show device activity with a coloured light.</small></span>
+        <button class="switch" id="ledsw" role="switch" aria-checked="true" aria-label="Status LED"></button>
+      </div>
+      <div class="slide">
+        <span class="lab">LED brightness</span>
+        <input type="range" id="ledbright" min="0" max="100" value="20" aria-label="LED brightness">
+        <span class="pct" id="ledbrightval">20</span>
+      </div>
+
+      <details class="details" id="ledlegend">
+        <summary>LED colours</summary>
+        <div class="legend">
+          <div><i class="pulse" style="background:#E5484D"></i>Waiting · slow pulse</div>
+          <div><i style="background:#0028C8"></i>Standby</div>
+          <div><i class="pulse fast" style="background:#E5484D"></i>Running · fast pulse</div>
+          <div><i style="background:#00C83C"></i>Finished, 5 s</div>
+          <div><i style="background:#E5484D"></i>Error · steady, 5 s</div>
+        </div>
+      </details>
+      </div>
+
+      <div class="runbar">
+        <button class="btn" id="savedisplay">Save display</button>
+        <span class="status" id="dispstatus"></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="card settings-group" id="settings-wifi" aria-labelledby="wifi-title">
+    <div class="card-bd" style="padding-top:1.15rem">
+      <h2 id="wifi-title">Wi-Fi network</h2>
+      <p class="sub">The network created by this device. Saving restarts it; reconnect to the new network.</p>
 
       <div class="field">
         <label for="ssid">Network name</label>
@@ -507,13 +565,77 @@ footer #ver{font:11.5px var(--mono)}
     </div>
   </section>
 
+  <section class="settings-group" id="settings-lock" aria-labelledby="lock-title">
+    <h2 class="settings-heading" id="lock-title">Startup &amp; lock</h2>
   <section class="card">
     <div class="card-bd" style="padding-top:1.15rem">
-      <h2>Reset</h2>
-      <p class="sub">Restores the built-in network name and password, and the French layout. Your payloads are kept.</p>
-      <div class="notice">Locked out? Hold the button on the dongle for five seconds. It restores the same defaults without needing this page.</div>
-      <div class="runbar"><button class="btn danger" id="reset">Restore defaults</button></div>
+      <h3>Startup</h3>
+      <p class="hint">Changes apply on the next boot.</p>
+
+      <div class="row">
+        <span class="lab">Start in standby<small>Unlock to start Wi-Fi and keyboard.</small></span>
+        <button class="switch" id="standbysw" role="switch" aria-checked="true" aria-label="Start in standby"></button>
+      </div>
+
+      <div class="settings-part">
+      <h3>Button gestures</h3>
+      <div class="field">
+        <label for="unlockseq">Unlock gesture</label>
+        <input type="text" id="unlockseq" maxlength="12" spellcheck="false" autocapitalize="characters" autocomplete="off">
+        <div class="hint">S = short press, L = long press. Use 1–12 presses, e.g. <code>SSSLL</code>.</div>
+      </div>
+
+      <div class="field">
+        <label for="longpress">Long press (ms)</label>
+        <input type="number" id="longpress" min="50" max="5000" step="10">
+        <div class="hint">Hold at least this long for an L press.</div>
+      </div>
+
+      <div class="row" style="margin-top:.3rem">
+        <span class="lab">Hard-lock gesture<small>Stop payloads and turn off screen, LED, Wi-Fi and keyboard.</small></span>
+        <button class="switch" id="hardlocksw" role="switch" aria-checked="true" aria-label="Hard-lock gesture"></button>
+      </div>
+
+      <div id="hardlockopts">
+        <div class="field">
+          <label for="hardlockseq">Hard-lock gesture</label>
+          <input type="text" id="hardlockseq" maxlength="12" spellcheck="false" autocapitalize="characters" autocomplete="off">
+          <div class="hint">Use S and L, e.g. <code>SSSSS</code>. Neither gesture may contain the other.</div>
+        </div>
+      </div>
+      <div class="field">
+        <label for="hardlockre">Locked plug-ins after hard lock</label>
+        <input type="number" id="hardlockre" min="1" max="20" step="1">
+        <div class="hint">Skip this many plug-ins before unlocking is allowed. Set to 1: replug twice to recover.</div>
+      </div>
+
+      </div>
+      <div class="runbar">
+        <button class="btn" id="savesecurity">Save startup &amp; lock</button>
+        <span class="status" id="securitystatus" role="status"></span>
+      </div>
+
+      <div class="settings-part">
+        <h3>Hard lock now</h3>
+        <p class="hint">Stops payloads and turns off screen, LED, Wi-Fi and keyboard. Unlocking stays blocked for the saved plug-in count. Hold the device button for 10 seconds to reset.</p>
+        <div class="runbar">
+          <button class="btn danger" id="hardlocknow">Hard lock</button>
+          <span class="status" id="lockresetstatus" role="status"></span>
+        </div>
+      </div>
     </div>
+  </section>
+
+  <section class="card">
+    <div class="card-bd" style="padding-top:1.15rem">
+      <h3>Reset device</h3>
+      <p class="hint">Reset settings. Saved payloads are kept.</p>
+      <div class="runbar">
+        <button class="btn danger" id="reset">Restore defaults</button>
+        <span class="status" id="resetstatus" role="status"></span>
+      </div>
+    </div>
+  </section>
   </section>
 </main>
 
@@ -523,8 +645,8 @@ footer #ver{font:11.5px var(--mono)}
 <!-- ============ reconnect overlay ============ -->
 <div class="overlay" id="overlay" hidden>
   <div>
-    <h2>The dongle is restarting</h2>
-    <p>Join this network again to get back to the app.</p>
+    <h2 id="overlaytitle">Restarting device</h2>
+    <p id="overlaymessage">Unlock if in standby, then reconnect to this network.</p>
     <div class="net" id="newnet"></div>
   </div>
 </div>
@@ -598,8 +720,9 @@ function paintLayout() {
       layout = l.code;
       arrangement = l.arrangement;
       paintLayout();
+      $('#layoutstatus').textContent = '';
       try { await api('/api/layout', form({layout})); }
-      catch (e) { $('#wifistatus').textContent = e.message; }
+      catch (e) { $('#layoutstatus').textContent = e.message; }
     };
     box.appendChild(b);
   }
@@ -673,9 +796,6 @@ $('#del').onclick = async () => {
 runBtn.onclick = async () => {
   try {
     await api('/api/run', form({script:script.value, delay:$('#delay').value || 0}));
-    // The device is already executing when this returns, and a short payload
-    // can finish before the next poll is served. Arm Stop here rather than
-    // waiting for a 'running' state the poll may never observe.
     setBusy(true);
     refresh();
   } catch (e) { status.textContent = e.message; }
@@ -708,6 +828,8 @@ async function pollLog() {
 /* ---- settings ---- */
 let rotation = 1, screenOn = true, ledOn = true;
 let showAccess = true;
+let screenBright = 100, ledBright = 20;
+let lastScreenBright = 100, lastLedBright = 20;
 
 function paintDisplay() {
   document.querySelectorAll('.orient button').forEach(b =>
@@ -716,10 +838,12 @@ function paintDisplay() {
   $('#accesssw').setAttribute('aria-checked', showAccess);
   $('#ledsw').setAttribute('aria-checked', ledOn);
   $('#ledlegend').hidden = !ledOn;
+  $('#screenbright').value = screenBright;
+  $('#ledbright').value = ledBright;
+  $('#screenbrightval').textContent = screenBright;
+  $('#ledbrightval').textContent = ledBright;
 }
 
-// The arming is a snapshot held by the device, not a reference to anything
-// in the library, so the whole state is one number: how many bytes are armed.
 function paintLaunch(armedBytes) {
   const tag = $('#bootstate');
   const btn = $('#armboot');
@@ -731,18 +855,102 @@ function paintLaunch(armedBytes) {
   $('#armedchip').hidden = !on;
 }
 
-// Takes you to the control rather than disarming on the spot: a mis-click on
-// something always on screen should not silently undo an arming.
 $('#armedchip').onclick = () => {
   show('main');
   $('#armboot').scrollIntoView({block: 'center', behavior: 'smooth'});
 };
 
 document.querySelectorAll('.orient button').forEach(b => b.onclick = () => {
+  if (screenLocked) return;
   rotation = +b.dataset.rot; paintDisplay();
 });
-$('#screensw').onclick = () => { screenOn = !screenOn; paintDisplay(); };
-$('#accesssw').onclick = () => { showAccess = !showAccess; paintDisplay(); };
+
+/* ---- brightness clamp, now allowing true zero ---- */
+function clampBright(n) {
+  n = +n;
+  if (isNaN(n)) n = 0;
+  if (n < 0) n = 0;
+  if (n > 100) n = 100;
+  return n;
+}
+
+let brightTimer;
+function displayFields(preview) {
+  const fields = { led: ledOn ? 1 : 0, ledBright: preview || ledOn ? ledBright : lastLedBright };
+  if (!screenLocked) {
+    fields.screen = screenOn ? 1 : 0;
+    fields.screenBright = preview || screenOn ? screenBright : lastScreenBright;
+    if (!preview) {
+      fields.rotation = rotation;
+      fields.showAccess = showAccess ? 1 : 0;
+    }
+  }
+  if (preview) fields.preview = 1;
+  return fields;
+}
+function previewBright() {
+  clearTimeout(brightTimer);
+  brightTimer = setTimeout(() => {
+    api('/api/settings/display', form(displayFields(true))).catch(e => {
+      $('#dispstatus').className = 'status err';
+      $('#dispstatus').textContent = e.message;
+      refresh();
+    });
+  }, 80);
+}
+
+/* ---- screen: switch <-> slider ---- */
+$('#screensw').onclick = () => {
+  if (screenLocked) return;
+  screenOn = !screenOn;
+  if (!screenOn) {
+    if (screenBright > 0) lastScreenBright = screenBright;
+    screenBright = 0;
+  } else {
+    screenBright = lastScreenBright > 0 ? lastScreenBright : 100;
+  }
+  paintDisplay();
+  previewBright();
+};
+
+$('#screenbright').oninput = () => {
+  if (screenLocked) return;
+  screenBright = clampBright($('#screenbright').value);
+  if (screenBright > 0) lastScreenBright = screenBright;
+  screenOn = screenBright > 0;
+  $('#screensw').setAttribute('aria-checked', screenOn);
+  $('#screenbrightval').textContent = screenBright;
+  previewBright();
+};
+
+/* ---- LED: switch <-> slider ---- */
+$('#ledsw').onclick = () => {
+  ledOn = !ledOn;
+  if (!ledOn) {
+    if (ledBright > 0) lastLedBright = ledBright;
+    ledBright = 0;
+  } else {
+    ledBright = lastLedBright > 0 ? lastLedBright : 20;
+  }
+  $('#ledlegend').hidden = !ledOn;
+  paintDisplay();
+  previewBright();
+};
+
+$('#ledbright').oninput = () => {
+  ledBright = clampBright($('#ledbright').value);
+  if (ledBright > 0) lastLedBright = ledBright;
+  ledOn = ledBright > 0;
+  $('#ledsw').setAttribute('aria-checked', ledOn);
+  $('#ledlegend').hidden = !ledOn;
+  $('#ledbrightval').textContent = ledBright;
+  previewBright();
+};
+
+$('#accesssw').onclick = () => {
+  if (screenLocked) return;
+  showAccess = !showAccess; paintDisplay();
+};
 
 let usbDrive = false, sdPath = '/';
 
@@ -838,18 +1046,14 @@ $('#drivesw').onclick = async () => {
     $('#drivesw').setAttribute('aria-checked', false);
   }
 };
-$('#ledsw').onclick = () => { ledOn = !ledOn; paintDisplay(); };
 
 $('#savedisplay').onclick = async () => {
   const st = $('#dispstatus');
   st.className = 'status';
   try {
-    await api('/api/settings/display', form({
-      rotation, screen: screenOn ? 1 : 0, led: ledOn ? 1 : 0,
-      showAccess: showAccess ? 1 : 0
-    }));
+    await api('/api/settings/display', form(displayFields(false)));
     st.className = 'status ok';
-    st.textContent = 'Applied';
+    st.textContent = screenLocked ? 'LED saved' : 'Saved';
   } catch (e) { st.className = 'status err'; st.textContent = e.message; }
 };
 
@@ -866,8 +1070,11 @@ $('#armboot').onclick = async () => {
 };
 
 async function loadSettings() {
+  $('#settingsstatus').textContent = '';
   try {
     const s = await (await api('/api/settings')).json();
+    screenLocked = !!s.screenLocked;
+    paintScreenLock();
     $('#ssid').value = s.ssid;
     $('#pass').value = s.password;
     $('#passhint').textContent = s.passwordMin + ' to ' + s.passwordMax + ' characters.';
@@ -877,8 +1084,29 @@ async function loadSettings() {
     screenOn = !!s.screen;
     showAccess = !!s.showAccess;
     ledOn = !!s.led;
+    screenBright = clampBright(s.screenBright == null ? 100 : s.screenBright);
+    ledBright = clampBright(s.ledBright == null ? 20 : s.ledBright);
+    if (screenBright > 0) lastScreenBright = screenBright;
+    if (ledBright > 0) lastLedBright = ledBright;
+    if (!screenOn) screenBright = 0;
+    else if (screenBright === 0) screenBright = lastScreenBright;
+    if (!ledOn) ledBright = 0;
+    else if (ledBright === 0) ledBright = lastLedBright;
     if (document.activeElement !== $('#delay')) $('#delay').value = s.startDelay;
     if (document.activeElement !== $('#devname')) $('#devname').value = s.deviceName;
+    if (document.activeElement !== $('#unlockseq')) $('#unlockseq').value = s.unlockSeq;
+    if (document.activeElement !== $('#hardlockseq')) $('#hardlockseq').value = s.hardlockSeq;
+    if (document.activeElement !== $('#longpress')) $('#longpress').value = s.longPressMs;
+    if (document.activeElement !== $('#hardlockre')) $('#hardlockre').value = s.hardlockReinserts;
+    $('#unlockseq').maxLength = $('#hardlockseq').maxLength = s.lockSeqMax || 12;
+    $('#longpress').min = s.longPressMin;
+    $('#longpress').max = s.longPressMax;
+    if (s.hardlockReinsertsMin != null) $('#hardlockre').min = s.hardlockReinsertsMin;
+    if (s.hardlockReinsertsMax != null) $('#hardlockre').max = s.hardlockReinsertsMax;
+    hardlockEnabled = !!s.hardlockEnabled;
+    standbyOnBoot = s.standbyOnBoot !== 0;
+    $('#standbysw').setAttribute('aria-checked', standbyOnBoot);
+    paintHardlock();
     usbDrive = !!s.usbDrive;
     $('#drivesw').setAttribute('aria-checked', usbDrive);
     $('#drivehint').textContent = s.usbCard
@@ -887,13 +1115,15 @@ async function loadSettings() {
     sdBrowse(sdPath);
     paintLayout();
     paintDisplay();
-  } catch (e) { $('#wifistatus').textContent = 'Could not load settings'; }
+  } catch (e) { $('#settingsstatus').textContent = 'Could not load settings. Reopen settings to try again.'; }
 }
 
 $('#reveal').onchange = e => { $('#pass').type = e.target.checked ? 'text' : 'password'; };
 
 function restarting(net) {
   poll = false;
+  $('#overlaytitle').textContent = 'Restarting device';
+  $('#overlaymessage').textContent = 'Unlock if in standby, then reconnect to this network.';
   $('#newnet').textContent = net;
   $('#overlay').hidden = false;
 }
@@ -908,12 +1138,115 @@ $('#savewifi').onclick = async () => {
   } catch (e) { ws.className = 'status err'; ws.textContent = e.message; }
 };
 
+let hardlockEnabled = true, standbyOnBoot = true;
+$('#standbysw').onclick = () => {
+  standbyOnBoot = !standbyOnBoot;
+  $('#standbysw').setAttribute('aria-checked', standbyOnBoot);
+};
+function paintHardlock() {
+  $('#hardlocksw').setAttribute('aria-checked', hardlockEnabled);
+  $('#hardlockopts').hidden = !hardlockEnabled;
+}
+$('#hardlocksw').onclick = () => { hardlockEnabled = !hardlockEnabled; paintHardlock(); };
+
+$('#savesecurity').onclick = async () => {
+  const st = $('#securitystatus');
+  st.className = 'status';
+  try {
+    const unlockSeq = $('#unlockseq').value.trim().toUpperCase();
+    const hardlockSeq = $('#hardlockseq').value.trim().toUpperCase();
+    if (unlockSeq && hardlockSeq &&
+        (unlockSeq.includes(hardlockSeq) || hardlockSeq.includes(unlockSeq))) {
+      throw new Error('Unlock and hard-lock sequences must differ; neither may contain the other');
+    }
+    await api('/api/settings/security', form({
+      unlockSeq, hardlockSeq,
+      standbyOnBoot: standbyOnBoot ? 1 : 0,
+      longPressMs: $('#longpress').value,
+      hardlockEnabled: hardlockEnabled ? 1 : 0,
+      hardlockReinserts: $('#hardlockre').value
+    }));
+    st.className = 'status ok';
+    st.textContent = 'Saved · applies next boot';
+  } catch (e) { st.className = 'status err'; st.textContent = e.message; }
+};
+
+// The topbar button both shows and toggles the screen lock. When the display
+// is locked the button lights up and the screen controls are disabled.
+let screenLocked = false;
+let screenControlsLocked = false, screenLockBusy = false;
+function paintScreenLock() {
+  if (screenLocked && !screenControlsLocked) clearTimeout(brightTimer);
+  screenControlsLocked = screenLocked;
+  const screenControls = [$('#screensw'), $('#screenbright'), $('#accesssw'),
+    ...document.querySelectorAll('.orient button')];
+  screenControls.forEach(control => {
+    control.disabled = screenLocked;
+    control.setAttribute('aria-describedby', 'screenlockhint');
+  });
+  const b = $('#lockdisplay');
+  b.disabled = screenLockBusy;
+  b.classList.toggle('active', screenLocked);
+  b.setAttribute('aria-pressed', screenLocked);
+  b.setAttribute('aria-label', screenLocked ? 'Unlock screen' : 'Lock screen');
+  $('#screenlocknotice').hidden = !screenLocked;
+  $('#screenlockhint').hidden = !screenLocked;
+  $('#unlockscreen').hidden = !screenLocked;
+  $('#unlockscreen').disabled = screenLockBusy;
+  b.title = screenLocked
+    ? 'Unlock screen'
+    : 'Lock screen; Wi-Fi and keyboard stay on';
+}
+async function setScreenLock(locked) {
+  if (screenLockBusy) return;
+  screenLockBusy = true;
+  clearTimeout(brightTimer);
+  paintScreenLock();
+  try {
+    const r = await api(locked ? '/api/lock-display' : '/api/unlock-display', form({}));
+    const d = await r.json();
+    screenLocked = !!d.screenLocked;
+    paintScreenLock();
+  } catch (e) {
+    $('#dispstatus').className = 'status err';
+    $('#dispstatus').textContent = e.message;
+  } finally {
+    screenLockBusy = false;
+    paintScreenLock();
+  }
+}
+$('#lockdisplay').onclick = () => setScreenLock(!screenLocked);
+$('#unlockscreen').onclick = () => setScreenLock(false);
+
+$('#hardlocknow').onclick = async () => {
+  if (!confirm('Hard lock now? This stops payloads, turns off Wi-Fi, and disconnects this page. Recovery requires the configured reinsertions or a factory reset.')) return;
+  const st = $('#lockresetstatus');
+  st.className = 'status';
+  $('#hardlocknow').disabled = true;
+  try {
+    const result = await (await api('/api/hard-lock', form({}))).json();
+    poll = false;
+    clearTimeout(brightTimer);
+    $('#overlaytitle').textContent = 'Device hard-locked';
+    $('#overlaymessage').textContent = 'Screen, LED, Wi-Fi and keyboard are off. This page is disconnected.';
+    $('#newnet').textContent = 'Replug ' + (result.hardlockReinserts + 1) + ' times to recover, or hold the device button for 10 seconds to reset.';
+    $('#overlay').hidden = false;
+  } catch (e) {
+    st.className = 'status err';
+    st.textContent = e.message;
+    $('#hardlocknow').disabled = false;
+  }
+};
+
 $('#reset').onclick = async () => {
-  if (!confirm('Restore the built-in network name, password and layout?')) return;
+  if (!confirm('Restore all settings and restart? Payloads are kept. Hard lock and armed boot runs are cleared.')) return;
   try {
     await api('/api/settings/reset', form({}));
     restarting('the built-in network shown on the screen');
-  } catch (e) { $('#wifistatus').textContent = e.message; }
+  } catch (e) {
+    $('#resetstatus').className = 'status err';
+    $('#resetstatus').textContent = e.message;
+  }
 };
 
 /* ---- polling ---- */
@@ -950,19 +1283,19 @@ async function refresh() {
   try {
     s = await (await api('/api/state')).json();
   } catch (e) {
-    $('#dot').className = 'dot';   // offline: the device stopped answering
+    $('#dot').className = 'dot';
     return;
   }
   try { paintState(s); } catch (e) { console.error('paintState', e); }
   try { paintList(s.payloads); } catch (e) { console.error('paintList', e); }
   try { paintLaunch(s.armed || 0); } catch (e) { console.error('paintLaunch', e); }
+  try { screenLocked = !!s.screenLocked; paintScreenLock(); } catch (e) {}
   pollLog();
 }
 
 setInterval(refresh, 1000);
 paintLayout();
 refresh();
-// Seeds the remembered delay without opening the settings view.
 api('/api/settings').then(r => r.json())
   .then(s => { $('#delay').value = s.startDelay; })
   .catch(() => {});

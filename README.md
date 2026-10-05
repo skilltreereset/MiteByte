@@ -5,7 +5,10 @@ twelve keyboard layouts, fully offline.
 
 ![Fleabyte status screen](screens/screen-idle.png)
 
-Plug it in and the dongle brings up its own Wi-Fi network. Scan the code on
+Plug it in, then unlock it with three short button presses followed by two
+long presses (`SSSLL`; long means at least 200 ms by default). Until unlocked,
+the dongle stays dark with Wi-Fi off and exposes only mass storage. Startup standby
+can be disabled in settings; armed boot runs still stay locked and dark. Scan the code on
 its screen to join, open the page, pick the keyboard layout of the machine
 it is plugged into, and run a script. Nothing leaves the device and nothing
 needs installing.
@@ -34,7 +37,8 @@ keystroke injection tool: it types into whatever it is plugged into.
 
 Execution is triggered from the web interface, or by arming a single run for
 the next plug-in from the bar under the editor. That arming is one shot and
-clears itself as it fires. Nothing else runs on plug-in, and the
+clears itself as it fires. An armed run enables the keyboard while the screen
+and Wi-Fi stay off; a pending hard lock blocks it. Nothing else runs on plug-in, and the
 button on the dongle never starts a payload.
 
 ## Hardware

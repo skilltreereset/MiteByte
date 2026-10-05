@@ -1,5 +1,6 @@
 #include "ducky.h"
 #include "config.h"
+#include "usb_mode.h"
 
 #include "USB.h"
 #include "USBHIDKeyboard.h"
@@ -412,6 +413,24 @@ static void runScript(char *script) {
       g_abort = false;
       return;
     }
+  }
+
+  // Insertion unlock/armed boot reconnects USB with the HID interface added.
+  // Do not drop the script's first keystrokes while the host enumerates it.
+  uint32_t usbWaitAt = millis();
+  while (!usbModeKeyboardReady() && millis() - usbWaitAt < 5000) {
+    if (!duckySleep(10)) break;
+  }
+  if (g_abort) {
+    logLine("== cancelled while waiting for USB ==");
+    setState(DUCKY_ABORTED, "Cancelled");
+    g_abort = false;
+    return;
+  }
+  if (!usbModeKeyboardReady()) {
+    logLine("== USB keyboard did not become ready ==");
+    setState(DUCKY_ERROR, "USB keyboard not ready");
+    return;
   }
 
   setState(DUCKY_RUNNING, "Running");

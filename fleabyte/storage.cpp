@@ -363,10 +363,19 @@ Settings storageLoadSettings() {
   s.rotation = TFT_ROTATION;
   s.screenOn = true;
   s.ledOn = true;
+  s.screenBright = SCREEN_BRIGHTNESS_DEFAULT;
+  s.ledBright = LED_BRIGHTNESS_DEFAULT;
   s.startDelay = 0;
   s.seedVersion = 0;
   s.usbDrive = false;
   s.showAccess = true;
+  s.standbyOnBoot = true;
+
+  s.unlockSequence = DEFAULT_UNLOCK_SEQUENCE;
+  s.hardlockSequence = DEFAULT_HARDLOCK_SEQUENCE;
+  s.longPressMs = LOCK_LONG_PRESS_MS;
+  s.hardlockEnabled = true;
+  s.hardlockReinserts = HARDLOCK_REINSERTS_DEFAULT;
 
   File f = LittleFS.open(SETTINGS_FILE, "r");
   if (!f) return s;
@@ -410,11 +419,19 @@ Settings storageLoadSettings() {
       s.screenOn = (value.toInt() != 0);
     } else if (key == "led") {
       s.ledOn = (value.toInt() != 0);
+    } else if (key == "screenbright") {
+      long v = value.toInt();
+      if (v >= BRIGHTNESS_MIN && v <= BRIGHTNESS_MAX) s.screenBright = (uint8_t)v;
+    } else if (key == "ledbright") {
+      long v = value.toInt();
+      if (v >= BRIGHTNESS_MIN && v <= BRIGHTNESS_MAX) s.ledBright = (uint8_t)v;
     } else if (key == "devicename") {
 
       if (storageDeviceNameIsValid(value)) s.deviceName = value;
     } else if (key == "showaccess") {
       s.showAccess = (value.toInt() != 0);
+    } else if (key == "standby") {
+      s.standbyOnBoot = (value.toInt() != 0);
     } else if (key == "usbdrive") {
       s.usbDrive = (value.toInt() != 0);
     } else if (key == "seedversion") {
@@ -423,7 +440,29 @@ Settings storageLoadSettings() {
     } else if (key == "startdelay") {
       long d = value.toInt();
       if (d >= 0 && d <= START_DELAY_MAX) s.startDelay = (uint16_t)d;
+    } else if (key == "unlockseq") {
+      value.toUpperCase();
+      if (storageLockSequenceIsValid(value)) s.unlockSequence = value;
+    } else if (key == "hardlockseq") {
+      value.toUpperCase();
+      if (storageLockSequenceIsValid(value)) s.hardlockSequence = value;
+    } else if (key == "longpressms") {
+      long v = value.toInt();
+      if (v >= 0 && v <= 65535 && storageLongPressIsValid((uint16_t)v)) s.longPressMs = (uint16_t)v;
+    } else if (key == "hardlocken") {
+      s.hardlockEnabled = (value.toInt() != 0);
+    } else if (key == "hardlockre") {
+      long v = value.toInt();
+      if (v >= HARDLOCK_REINSERTS_MIN && v <= HARDLOCK_REINSERTS_MAX) {
+        s.hardlockReinserts = (uint8_t)v;
+      }
     }
+  }
+  // Recover settings written by older firmware that accepted conflicting
+  // gestures, so an update cannot leave the owner unable to unlock.
+  if (!storageLockSequencesAreCompatible(s.unlockSequence, s.hardlockSequence)) {
+    s.unlockSequence = DEFAULT_UNLOCK_SEQUENCE;
+    s.hardlockSequence = DEFAULT_HARDLOCK_SEQUENCE;
   }
   return s;
 }
@@ -476,6 +515,8 @@ String storageArmedRead() {
 bool storageSaveSettings(const Settings &s) {
   if (!s.ssid.isEmpty() && !storageSsidIsValid(s.ssid)) return false;
   if (!s.password.isEmpty() && !storagePasswordIsValid(s.password)) return false;
+  if (!storageLockSequencesAreCompatible(s.unlockSequence, s.hardlockSequence)) return false;
+  if (!storageLongPressIsValid(s.longPressMs)) return false;
 
   File f = LittleFS.open(SETTINGS_FILE, "w");
   if (!f) return false;
@@ -495,6 +536,10 @@ bool storageSaveSettings(const Settings &s) {
   f.println(s.screenOn ? 1 : 0);
   f.print("led=");
   f.println(s.ledOn ? 1 : 0);
+  f.print("screenbright=");
+  f.println(s.screenBright);
+  f.print("ledbright=");
+  f.println(s.ledBright);
   f.print("startdelay=");
   f.println(s.startDelay);
   f.print("seedversion=");
@@ -503,10 +548,22 @@ bool storageSaveSettings(const Settings &s) {
   f.println(s.usbDrive ? 1 : 0);
   f.print("showaccess=");
   f.println(s.showAccess ? 1 : 0);
+  f.print("standby=");
+  f.println(s.standbyOnBoot ? 1 : 0);
   if (!s.deviceName.isEmpty()) {
     f.print("devicename=");
     f.println(s.deviceName);
   }
+  f.print("unlockseq=");
+  f.println(s.unlockSequence);
+  f.print("hardlockseq=");
+  f.println(s.hardlockSequence);
+  f.print("longpressms=");
+  f.println(s.longPressMs);
+  f.print("hardlocken=");
+  f.println(s.hardlockEnabled ? 1 : 0);
+  f.print("hardlockre=");
+  f.println(s.hardlockReinserts);
   f.close();
 
   return true;
@@ -515,4 +572,41 @@ bool storageSaveSettings(const Settings &s) {
 void storageResetSettings() {
   LittleFS.remove(SETTINGS_FILE);
   storageArmedClear();
+  LittleFS.remove(HARDLOCK_FILE);
+}
+
+// See HARDLOCK_FILE in config.h: the file holds how many more boots, after
+// this one, stay hard-locked. Called exactly once per boot, before anything
+// reads the lock state.
+bool storageHardlockTick() {
+  File f = LittleFS.open(HARDLOCK_FILE, "r");
+  long pending = f ? f.parseInt() : 0;
+  if (f) f.close();
+
+  if (pending <= 0) {
+    LittleFS.remove(HARDLOCK_FILE);
+    return false;
+  }
+
+  pending--;
+  if (pending <= 0) {
+    LittleFS.remove(HARDLOCK_FILE);
+  } else {
+    File w = LittleFS.open(HARDLOCK_FILE, "w");
+    if (w) {
+      w.print(pending);
+      w.close();
+    }
+  }
+  return true;
+}
+
+bool storageHardlockArm(uint8_t reinserts) {
+  if (reinserts < HARDLOCK_REINSERTS_MIN) reinserts = HARDLOCK_REINSERTS_MIN;
+  if (reinserts > HARDLOCK_REINSERTS_MAX) reinserts = HARDLOCK_REINSERTS_MAX;
+  File f = LittleFS.open(HARDLOCK_FILE, "w");
+  if (!f) return false;
+  size_t written = f.print(reinserts); // this many subsequent boots stay locked
+  f.close();
+  return written == (reinserts < 10 ? 1u : 2u);
 }

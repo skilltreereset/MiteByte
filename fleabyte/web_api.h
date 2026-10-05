@@ -3,3 +3,4 @@
 
 void webBegin(const String &ssid);
 void webLoop();
+void webEnd();

@@ -4,6 +4,7 @@
 #include "storage.h"
 #include "web_assets.h"
 
+#include "lock.h"
 #include "ui_display.h"
 #include "usb_drive.h"
 
@@ -88,6 +89,7 @@ static void handleState() {
   json += "\"countdown\":" + String(st.countdown) + ",";
   json += "\"hostSeen\":" + String(duckyHostSeen() ? 1 : 0) + ",";
   json += "\"armed\":" + String((uint32_t)storageArmedSize()) + ",";
+  json += "\"screenLocked\":" + String(lockScreenIsLocked() ? 1 : 0) + ",";
   json += "\"message\":\"" + jsonEscape(st.message) + "\",";
 
   json += "\"payloads\":[";
@@ -247,12 +249,26 @@ static void handleSettingsGet() {
   json += "\"rotation\":" + String(displayGetRotation()) + ",";
   json += "\"screen\":" + String(s.screenOn ? 1 : 0) + ",";
   json += "\"led\":" + String(s.ledOn ? 1 : 0) + ",";
+  json += "\"screenBright\":" + String(s.screenBright) + ",";
+  json += "\"ledBright\":" + String(s.ledBright) + ",";
   json += "\"startDelay\":" + String(s.startDelay) + ",";
   json += "\"startDelayMax\":" + String(START_DELAY_MAX) + ",";
   json += "\"deviceName\":\"" + jsonEscape(s.deviceName.isEmpty()
               ? String(DEVICE_NAME_DEFAULT) : s.deviceName) + "\",";
   json += "\"deviceNameMax\":" + String(DEVICE_NAME_MAX) + ",";
   json += "\"showAccess\":" + String(s.showAccess ? 1 : 0) + ",";
+  json += "\"standbyOnBoot\":" + String(s.standbyOnBoot ? 1 : 0) + ",";
+  json += "\"unlockSeq\":\"" + jsonEscape(s.unlockSequence) + "\",";
+  json += "\"hardlockSeq\":\"" + jsonEscape(s.hardlockSequence) + "\",";
+  json += "\"longPressMs\":" + String(s.longPressMs) + ",";
+  json += "\"longPressMin\":" + String(LOCK_LONG_PRESS_MIN_MS) + ",";
+  json += "\"longPressMax\":" + String(LOCK_LONG_PRESS_MAX_MS) + ",";
+  json += "\"lockSeqMax\":" + String(LOCK_SEQ_MAX_LEN) + ",";
+  json += "\"hardlockEnabled\":" + String(s.hardlockEnabled ? 1 : 0) + ",";
+  json += "\"hardlockReinserts\":" + String(s.hardlockReinserts) + ",";
+  json += "\"hardlockReinsertsMin\":" + String(HARDLOCK_REINSERTS_MIN) + ",";
+  json += "\"hardlockReinsertsMax\":" + String(HARDLOCK_REINSERTS_MAX) + ",";
+  json += "\"screenLocked\":" + String(lockScreenIsLocked() ? 1 : 0) + ",";
   UsbDriveStatus drv = usbDriveGetStatus();
   json += "\"usbDrive\":" + String(drv.exposed ? 1 : 0) + ",";
   json += "\"usbCard\":" + String(drv.cardPresent ? 1 : 0) + ",";
@@ -300,9 +316,53 @@ static void handleWifiSave() {
   g_rebootAt = millis() + 1500;
 }
 
+static bool parseBright(const String &arg, uint8_t &out) {
+  long n = arg.toInt();
+  if (n < BRIGHTNESS_MIN || n > BRIGHTNESS_MAX) return false;
+  out = (uint8_t)n;
+  return true;
+}
+
 static void handleDisplaySave() {
+  if (lockScreenIsLocked() &&
+      (server.hasArg("screen") || server.hasArg("screenBright") ||
+       server.hasArg("rotation") || server.hasArg("showAccess"))) {
+    sendError(409, "Unlock to change screen settings.");
+    return;
+  }
   Settings st = storageLoadSettings();
   st.layout = duckyGetLayout();
+
+  bool preview = server.hasArg("preview") && server.arg("preview").toInt() != 0;
+
+  if (server.hasArg("screenBright")) {
+    if (!parseBright(server.arg("screenBright"), st.screenBright)) {
+      sendError(400, "Screen brightness must be " + String(BRIGHTNESS_MIN) +
+                     " to " + String(BRIGHTNESS_MAX));
+      return;
+    }
+  }
+  if (server.hasArg("ledBright")) {
+    if (!parseBright(server.arg("ledBright"), st.ledBright)) {
+      sendError(400, "LED brightness must be " + String(BRIGHTNESS_MIN) +
+                     " to " + String(BRIGHTNESS_MAX));
+      return;
+    }
+  }
+
+  if (server.hasArg("screen")) st.screenOn = (server.arg("screen").toInt() != 0);
+  if (server.hasArg("led")) st.ledOn = (server.arg("led").toInt() != 0);
+
+  if (preview) {
+    if (!lockScreenIsLocked()) {
+      displaySetScreenOn(st.screenOn);
+      displaySetScreenBright(st.screenBright);
+    }
+    displaySetLedBright(st.ledBright);
+    displaySetLed(st.ledOn);
+    sendJson(200, "{\"ok\":true}");
+    return;
+  }
 
   if (server.hasArg("rotation")) {
     int r = server.arg("rotation").toInt();
@@ -312,8 +372,6 @@ static void handleDisplaySave() {
     }
     st.rotation = (uint8_t)r;
   }
-  if (server.hasArg("screen")) st.screenOn = (server.arg("screen").toInt() != 0);
-  if (server.hasArg("led")) st.ledOn = (server.arg("led").toInt() != 0);
   if (server.hasArg("showAccess")) st.showAccess = (server.arg("showAccess").toInt() != 0);
 
   if (!storageSaveSettings(st)) {
@@ -321,8 +379,12 @@ static void handleDisplaySave() {
     return;
   }
 
-  displaySetRotation(st.rotation);
-  displaySetScreenOn(st.screenOn);
+  if (!lockScreenIsLocked()) {
+    displaySetRotation(st.rotation);
+    displaySetScreenOn(st.screenOn);
+    displaySetScreenBright(st.screenBright);
+  }
+  displaySetLedBright(st.ledBright);
   displaySetLed(st.ledOn);
 
   sendJson(200, "{\"ok\":true}");
@@ -438,6 +500,93 @@ static void handleNameSave() {
   sendJson(200, "{\"ok\":true}");
 }
 
+static void handleSecuritySave() {
+  Settings st = storageLoadSettings();
+  st.layout = duckyGetLayout();
+  if (server.hasArg("standbyOnBoot")) {
+    st.standbyOnBoot = (server.arg("standbyOnBoot").toInt() != 0);
+  }
+
+  if (server.hasArg("unlockSeq")) {
+    String v = server.arg("unlockSeq");
+    v.toUpperCase();
+    if (!storageLockSequenceIsValid(v)) {
+      sendError(400, "Unlock sequence must be 1 to " + String(LOCK_SEQ_MAX_LEN) +
+                     " characters, each S or L");
+      return;
+    }
+    st.unlockSequence = v;
+  }
+  if (server.hasArg("hardlockSeq")) {
+    String v = server.arg("hardlockSeq");
+    v.toUpperCase();
+    if (!storageLockSequenceIsValid(v)) {
+      sendError(400, "Hard-lock sequence must be 1 to " + String(LOCK_SEQ_MAX_LEN) +
+                     " characters, each S or L");
+      return;
+    }
+    st.hardlockSequence = v;
+  }
+  if (server.hasArg("longPressMs")) {
+    long ms = server.arg("longPressMs").toInt();
+    if (ms < 0 || ms > 65535 || !storageLongPressIsValid((uint16_t)ms)) {
+      sendError(400, "Long-press threshold must be " + String(LOCK_LONG_PRESS_MIN_MS) +
+                     " to " + String(LOCK_LONG_PRESS_MAX_MS) + " ms");
+      return;
+    }
+    st.longPressMs = (uint16_t)ms;
+  }
+  if (server.hasArg("hardlockEnabled")) {
+    st.hardlockEnabled = (server.arg("hardlockEnabled").toInt() != 0);
+  }
+  if (server.hasArg("hardlockReinserts")) {
+    long n = server.arg("hardlockReinserts").toInt();
+    if (n < HARDLOCK_REINSERTS_MIN || n > HARDLOCK_REINSERTS_MAX) {
+      sendError(400, "Reinsertions must be " + String(HARDLOCK_REINSERTS_MIN) +
+                     " to " + String(HARDLOCK_REINSERTS_MAX));
+      return;
+    }
+    st.hardlockReinserts = (uint8_t)n;
+  }
+
+  if (!storageLockSequencesAreCompatible(st.unlockSequence, st.hardlockSequence)) {
+    sendError(400, "Unlock and hard-lock sequences must differ; neither may contain the other");
+    return;
+  }
+
+  if (!storageSaveSettings(st)) {
+    sendError(500, "Could not write to flash");
+    return;
+  }
+
+  // Takes effect on the next boot into LOCKED, same as the Wi-Fi settings.
+  sendJson(200, "{\"ok\":true}");
+}
+
+// Locks the screen and the button down to just the unlock gesture, without
+// dropping the radio, HID or web server. No-op unless currently unlocked.
+static void handleLockDisplay() {
+  lockRequestScreenLock();
+  sendJson(200, "{\"ok\":true,\"screenLocked\":" + String(lockScreenIsLocked() ? 1 : 0) + "}");
+}
+
+// Restores the screen preference, leaving SCREEN_LOCK. Refused while hard-locked.
+static void handleUnlockDisplay() {
+  bool ok = lockRequestScreenUnlock();
+  sendJson(ok ? 200 : 409,
+           "{\"ok\":" + String(ok ? "true" : "false") +
+           ",\"screenLocked\":" + String(lockScreenIsLocked() ? 1 : 0) + "}");
+}
+
+static void handleHardLock() {
+  Settings st = storageLoadSettings();
+  if (!lockRequestHardLock(st.hardlockReinserts)) {
+    sendError(500, "Could not arm hard lock. The device is still online.");
+    return;
+  }
+  sendJson(200, "{\"ok\":true,\"hardlockReinserts\":" + String(st.hardlockReinserts) + "}");
+}
+
 static void handleFactoryReset() {
   storageResetSettings();
   sendJson(200, "{\"ok\":true,\"reboot\":true}");
@@ -472,6 +621,10 @@ void webBegin(const String &ssid) {
   server.on("/api/settings/display", HTTP_POST, handleDisplaySave);
   server.on("/api/settings/drive", HTTP_POST, handleDriveSave);
   server.on("/api/settings/name", HTTP_POST, handleNameSave);
+  server.on("/api/settings/security", HTTP_POST, handleSecuritySave);
+  server.on("/api/lock-display", HTTP_POST, handleLockDisplay);
+  server.on("/api/unlock-display", HTTP_POST, handleUnlockDisplay);
+  server.on("/api/hard-lock", HTTP_POST, handleHardLock);
   server.on("/api/sd/list", HTTP_GET, handleSdList);
   server.on("/api/sd/download", HTTP_GET, handleSdDownload);
   server.on("/api/sd/delete", HTTP_POST, handleSdDelete);
@@ -488,4 +641,10 @@ void webLoop() {
   if (g_rebootAt && millis() >= g_rebootAt) {
     ESP.restart();
   }
+}
+
+void webEnd() {
+  g_rebootAt = 0;
+  server.stop();
+  dns.stop();
 }

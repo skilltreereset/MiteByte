@@ -28,6 +28,15 @@ void displaySetRotation(uint8_t rotation);
 uint8_t displayGetRotation();
 
 void displaySetScreenOn(bool on);
+bool displayGetScreenOn();
+// A lock overrides on/off, brightness and temporary wakes without changing
+// the preference. UI changes made while locked apply when the lock is lifted.
+void displaySetScreenLocked(bool locked);
+// Immediately blank both lights; used when entering hard-lock standby.
+void displayStandby();
+
+void displaySetScreenBright(uint8_t percent);
+void displaySetLedBright(uint8_t percent);
 
 void displayWake();
 

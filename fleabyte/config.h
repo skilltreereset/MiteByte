@@ -19,6 +19,12 @@
 // Active low: 0 is full brightness, 255 is off.
 #define TFT_BL_DUTY_ON 0
 
+#define BRIGHTNESS_MIN 0
+#define BRIGHTNESS_MAX 100
+#define SCREEN_BRIGHTNESS_DEFAULT 100
+// Maps to the old APA102 global brightness of 6/31.
+#define LED_BRIGHTNESS_DEFAULT 20
+
 #define TFT_ROTATION 1
 
 #define TFT_SWAP_RED_BLUE 1
@@ -60,7 +66,48 @@
 #define PASSWORD_MIN_LEN 8
 #define PASSWORD_MAX_LEN 63
 
-#define FACTORY_RESET_HOLD_MS 5000
+#define FACTORY_RESET_HOLD_MS 10000
+
+// --- Insertion lock -------------------------------------------------------
+// The dongle comes up LOCKED: mass storage only, screen off, with the
+// radio, HID and web interface held down until the button is tapped in the
+// right order. A press held at or past the configured long-press threshold
+// counts as long. The screen stays dark the whole time; presses are counted
+// blind, with no on-screen feedback.
+//
+// Sequences are a string of 'S'/'L' in order, matched against the tail of the
+// recent presses, so a mistake slides the window instead of resetting it.
+// The values below are only the compiled-in defaults: both sequences and the
+// threshold live in Settings and are configurable from the web UI.
+#define LOCK_LONG_PRESS_MS      200
+#define LOCK_LONG_PRESS_MIN_MS  50
+#define LOCK_LONG_PRESS_MAX_MS  5000
+#define LOCK_PRESS_DEBOUNCE_MS  30
+#define LOCK_MAX_PRESSES        12
+#define LOCK_SEQ_MIN_LEN        1
+#define LOCK_SEQ_MAX_LEN        12
+#define DEFAULT_UNLOCK_SEQUENCE   "SSSLL"
+#define DEFAULT_HARDLOCK_SEQUENCE "SSSSS"
+
+// Holding the button 2 s while ONLINE (screen on, device unlocked) enters
+// SCREEN_LOCK: the screen and the button are locked down to just the unlock
+// gesture, but the radio, HID and web keep running untouched. Exit is the
+// same unlock sequence as LOCKED, not a separate one.
+#define SCREEN_LOCK_ENTER_HOLD_MS 2000
+
+// Snapshot of a pending hard-lock, outside settings.txt so a factory reset
+// (which deletes settings.txt) also clears it outright. Its presence/count is
+// the state: no second copy of that fact to drift out of sync. Armed with a
+// count of 1, meaning "one more boot after this reinsertion stays locked", so
+// clearing it takes two separate reinsertions, not one.
+#define HARDLOCK_FILE "/hardlock.txt"
+
+// How many reinsertions stay locked after the hard-lock gesture is armed.
+// Configurable from the web UI; 1 means the next reinsertion stays locked and
+// the one after that can unlock (two reinsertions to recover).
+#define HARDLOCK_REINSERTS_DEFAULT 1
+#define HARDLOCK_REINSERTS_MIN     1
+#define HARDLOCK_REINSERTS_MAX     20
 
 // The LED reports state rather than taste, so the colours are fixed.
 // Standby blue, red while waiting for a device or running, green once a

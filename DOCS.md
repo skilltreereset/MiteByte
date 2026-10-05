@@ -39,7 +39,8 @@ Library** from the Library Manager.
 
 First flash: hold the button while plugging the dongle in, then release.
 
-After that `./tools/flash.sh` handles it alone. Once the firmware runs, the
+After that, unlock the dongle first so its serial interface is visible, then
+`./tools/flash.sh` handles flashing. Once the firmware runs, the
 serial port belongs to TinyUSB, which does not implement the DTR/RTS reset
 esptool expects, so the script opens the port at 1200 baud to trigger
 `usb_persist_restart(RESTART_BOOTLOADER)` in the core first.
@@ -49,6 +50,18 @@ bootloader: dark screen, no Wi-Fi, silent serial port. Unplug and replug
 without touching it.
 
 ## First run
+
+By default the dongle starts in insertion-lock standby: screen and LED off, Wi-Fi off,
+and only the USB mass-storage interface visible. Unlock with `SSSLL`: three
+short presses followed by two long presses. A short press is 30–199 ms;
+a long press is at least 200 ms by default. Release the button after each press.
+USB briefly reconnects when unlocking to add the keyboard and serial interfaces.
+
+In Settings → Startup & lock, **Start in standby** controls ordinary startup.
+It defaults to on and changes take effect on the next boot. Turn it off to start
+Wi-Fi, the UI and the keyboard automatically. A pending hard lock overrides this
+switch. An armed **Fire after boot** run also keeps startup locked and dark,
+regardless of the switch, so only the payload's keyboard execution comes up.
 
 The screen shows the network name and password. Both derive from the device
 MAC, so every dongle starts with different credentials:
@@ -69,8 +82,41 @@ mismatch is obvious at a glance.
 ### Getting back in
 
 A mistyped Wi-Fi password would lock you out of the only interface. Hold the
-button for five seconds: the settings file is deleted and the device reboots
-on its built-in credentials. Payloads are kept.
+button for ten seconds in any state: settings, pending hard lock and the armed
+boot run are cleared. The payload library is kept. Unlock with the default
+gesture again to reach the built-in network.
+
+### Screen lock and hard lock
+
+Hold the button for two seconds while online, or use the web lock button, to
+lock the screen. Wi-Fi, the web interface and keyboard keep running. The screen
+stays dark and its on/off, brightness, orientation and credential-display controls
+are disabled in the UI. The API also rejects attempts to change these while locked.
+The display card provides a short lock notice and an **Unlock screen** button; the
+top-bar lock icon also unlocks it. LED controls remain available.
+The unlock gesture or web unlock button restores the existing screen preferences;
+if Screen is off, it stays off until a normal button tap briefly wakes it.
+
+While insertion-locked or screen-locked, `SSSSS` arms hard lock by default.
+It immediately returns to standby: no display or LED, no Wi-Fi/web access,
+no HID or serial interface, and any running payload is stopped. Mass storage
+retains its exposure setting. USB briefly reconnects to remove the other interfaces.
+Hard lock does not reboot or consume a reinsertion when it is armed.
+
+The **Hard lock** button under **Startup & lock** arms the same lockout from
+the web UI, including while the screen is locked. It works even when the hard-lock
+gesture is disabled. The browser receives confirmation and recovery instructions
+before the device closes Wi-Fi; a flash-write failure leaves it online and reports
+an error. The button uses the saved reinsertion count.
+
+The configured number of subsequent boots remains hard-locked; the following
+boot permits unlocking. The default is one locked reinsertion, so replug twice
+to recover. An armed boot payload stays queued while hard-locked and can run
+on the first boot after the lockout ends. Factory reset clears both.
+
+Both gestures, the long-press threshold and the hard-lock count are configurable.
+Neither gesture may contain the other, including identical gestures. Settings
+saved by older firmware with conflicting gestures fall back to `SSSLL` / `SSSSS`.
 
 ## Script commands
 
@@ -119,19 +165,19 @@ whatever the mount error.
 
 ## Settings
 
-Layout, device name, screen orientation and backlight, status light on or
-off, Wi-Fi credentials, USB drive. Stored on internal flash and kept across
+Layout, device name, screen orientation and brightness, status light and its
+brightness, Wi-Fi credentials, USB drive, startup standby and lock gestures are stored on internal flash and kept across
 reflashing, since the firmware goes to `app0` while settings live on the
 `spiffs` partition.
 
 Changing the Wi-Fi credentials restarts the dongle, because the network
-being reconfigured is the one carrying the request. Everything else applies
-live.
+being reconfigured is the one carrying the request. Lock settings apply on the
+next boot. Display controls preview live while unlocked; **Save display** saves them.
 
 ## Status light
 
-The colours are fixed and report state rather than taste. Only on or off is
-configurable.
+The colours are fixed and report state rather than taste. On/off and brightness
+are configurable. In insertion-lock or hard-lock standby the LED stays off.
 
 | Light | Meaning |
 |---|---|
@@ -163,10 +209,15 @@ and nothing is queued unless the delete took, so a crash or a replug during
 the run cannot turn one arming into a payload that fires on every plug. A
 factory reset clears it too.
 
-At power-up the host has usually not finished setting the keyboard up, and
-anything typed before that is lost. Start the script with `WAIT_FOR_HOST`,
-or give it a start delay, which doubles as the window to pull the dongle
-back out.
+Selecting a library payload alone does not arm a run. Use **Fire after boot**.
+That run bypasses the insertion gesture only for keyboard execution: the device
+stays locked, dark, and offline until manually unlocked. Hard lock suppresses it.
+
+Execution waits up to five seconds for the USB keyboard interface to become
+ready after enumeration; if it does not, the run ends with an error. This wait
+is cancellable and does not turn on the screen or Wi-Fi. `WAIT_FOR_HOST` can
+add a wait for the keyboard LED report, or use a start delay to allow more time
+for the host application and a window to pull the dongle back out.
 
 ## Repository layout
 
@@ -178,6 +229,8 @@ back out.
 | `storage.h/.cpp` | Payload library and settings on LittleFS |
 | `ui_display.h/.cpp` | ST7735 screen and APA102 LED |
 | `usb_drive.h/.cpp` | Mass storage and card browsing |
+| `usb_mode.h/.cpp` | Storage-only and active USB descriptors |
+| `lock.h/.cpp`, `lock_validation.cpp` | Gesture states and settings validation |
 | `web_api.h/.cpp` | HTTP server, API, captive portal |
 | `web_assets.h` | Web interface, compiled into the firmware |
 | `partitions.csv` | 16 MB layout, 4 MB app, 7.88 MB filesystem |

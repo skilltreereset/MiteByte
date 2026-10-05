@@ -31,7 +31,10 @@ static Adafruit_ST7735 tft(&tftSPI, TFT_CS, TFT_DC, TFT_RST);
 
 static uint8_t s_rotation = TFT_ROTATION;
 static bool s_screenOn = true;
-static bool s_ledOn = true;
+static bool s_screenLocked = true;
+static bool s_ledOn = false;
+static uint8_t s_screenBright = SCREEN_BRIGHTNESS_DEFAULT;
+static uint8_t s_ledGlobal = LED_BRIGHTNESS;
 static bool s_ledWaiting = false;
 static bool s_ledFault = false;
 static bool s_ledMessage = false;
@@ -46,9 +49,14 @@ static uint8_t s_ledKey = 255;
 static uint8_t s_curR = 0, s_curG = 0, s_curB = 0;
 static uint8_t s_fromR = 0, s_fromG = 0, s_fromB = 0;
 static uint32_t s_wakeUntil = 0;
-static bool s_backlightLit = true;
 static bool s_fullRepaint = true;
 static bool s_splash = false;
+
+// The backlight PWM is attached lazily, the first time the backlight is
+// actually lit. Until then the pin is held off as plain GPIO, so boot and
+// LOCKED never flick it on through LEDC's setup (ledcAttach briefly drives
+// duty 0, which is on for this active-low backlight).
+static bool s_blAttached = false;
 
 static void ledEmit(uint8_t r, uint8_t g, uint8_t b);
 
@@ -67,14 +75,15 @@ static void apa102Byte(uint8_t b) {
 static void ledSet(uint8_t r, uint8_t g, uint8_t b) {
   // Standby holds one colour for minutes on end, and the frame clock would
   // otherwise bit-bang the same 12 bytes forty times a second.
-  static uint8_t lastR = 1, lastG = 1, lastB = 1;
-  if (r == lastR && g == lastG && b == lastB) return;
+  static uint8_t lastR = 1, lastG = 1, lastB = 1, lastGlobal = 255;
+  if (r == lastR && g == lastG && b == lastB && s_ledGlobal == lastGlobal) return;
   lastR = r;
   lastG = g;
   lastB = b;
+  lastGlobal = s_ledGlobal;
 
   for (int i = 0; i < 4; i++) apa102Byte(0x00);
-  apa102Byte(0xE0 | (LED_BRIGHTNESS & 0x1F));
+  apa102Byte(0xE0 | (s_ledGlobal & 0x1F));
   apa102Byte(b);
   apa102Byte(g);
   apa102Byte(r);
@@ -93,12 +102,37 @@ static uint8_t breathe(uint32_t now, uint16_t period) {
   return (uint8_t)((tri * tri) / 255);
 }
 
-static void applyBacklight() {
-  bool lit = s_screenOn || (millis() < s_wakeUntil);
-  if (lit == s_backlightLit) return;
-  s_backlightLit = lit;
+static uint8_t backlightDuty() {
+  bool lit = !s_screenLocked && (s_screenOn || (millis() < s_wakeUntil));
+  if (!lit) return 255;
+  uint8_t pct = s_screenBright;
+  if (pct < BRIGHTNESS_MIN) pct = BRIGHTNESS_MIN;
+  if (pct > BRIGHTNESS_MAX) pct = BRIGHTNESS_MAX;
+  // Active low: 100% is duty 0, 1% is nearly off.
+  return (uint8_t)(255 - ((uint16_t)pct * 255 / BRIGHTNESS_MAX));
+}
 
-  ledcWrite(TFT_BL, lit ? TFT_BL_DUTY_ON : 255);
+static void applyBacklight() {
+  uint8_t duty = backlightDuty();
+  static uint8_t lastDuty = 0xFE;  // force the first write through
+  static bool known = false;
+  if (known && duty == lastDuty) return;
+  lastDuty = duty;
+  known = true;
+
+  if (duty >= 255) {
+    // Fully off. Keep it off without pulling up the PWM: plain GPIO high (the
+    // backlight is active low) until something genuinely wants light.
+    if (s_blAttached) ledcWrite(TFT_BL, 255);
+    else digitalWrite(TFT_BL, HIGH);
+    return;
+  }
+
+  if (!s_blAttached) {
+    ledcAttach(TFT_BL, 1000, 8);
+    s_blAttached = true;
+  }
+  ledcWrite(TFT_BL, duty);
 }
 
 static void putText(int16_t x, int16_t y, const String &t, uint16_t color, uint8_t size) {
@@ -272,6 +306,15 @@ static void drawChrome(const String &arrangement, const String &name) {
 }
 
 void displayBegin() {
+  // Drive the backlight physically off before anything else, so the panel's
+  // uninitialised (white) RAM is never lit during the init below. Active low,
+  // so HIGH is off. The PWM is not attached here: applyBacklight() brings it
+  // up lazily the first time something is actually lit, so boot and LOCKED
+  // never flick the backlight on through LEDC's setup.
+  pinMode(TFT_BL, OUTPUT);
+  digitalWrite(TFT_BL, HIGH);
+  s_screenOn = false;
+
   pinMode(LED_DI_PIN, OUTPUT);
   pinMode(LED_CI_PIN, OUTPUT);
   digitalWrite(LED_CI_PIN, LOW);
@@ -283,9 +326,11 @@ void displayBegin() {
   tft.invertDisplay(true);
   tft.fillScreen(C_BG);
 
-  ledcAttach(TFT_BL, 1000, 8);
-  ledcWrite(TFT_BL, TFT_BL_DUTY_ON);
-  s_backlightLit = true;
+  applyBacklight();  // off; stays plain-GPIO until the backlight is first lit
+
+  pinMode(LED_DI_PIN, OUTPUT);
+  pinMode(LED_CI_PIN, OUTPUT);
+  digitalWrite(LED_CI_PIN, LOW);
 }
 
 void displaySetRotation(uint8_t rotation) {
@@ -300,17 +345,57 @@ uint8_t displayGetRotation() { return s_rotation; }
 
 void displaySetScreenOn(bool on) {
   s_screenOn = on;
+  // An explicit off beats any pending temporary wake, so screen-lock turns
+  // the backlight off at once rather than coasting on a recent tap's wake.
+  if (!on) s_wakeUntil = 0;
   applyBacklight();
 }
 
+bool displayGetScreenOn() { return s_screenOn; }
+
+void displaySetScreenLocked(bool locked) {
+  s_screenLocked = locked;
+  if (locked) s_wakeUntil = 0;
+  applyBacklight();
+}
+
+void displayStandby() {
+  displaySetScreenLocked(true);
+  s_ledOn = false;
+  ledEmit(0, 0, 0);
+}
+
+void displaySetScreenBright(uint8_t percent) {
+  if (percent < BRIGHTNESS_MIN) percent = BRIGHTNESS_MIN;
+  if (percent > BRIGHTNESS_MAX) percent = BRIGHTNESS_MAX;
+  s_screenBright = percent;
+  applyBacklight();
+}
+
+void displaySetLedBright(uint8_t percent) {
+  if (percent < BRIGHTNESS_MIN) percent = BRIGHTNESS_MIN;
+  if (percent > BRIGHTNESS_MAX) percent = BRIGHTNESS_MAX;
+  uint8_t hw = 0;
+  if (percent > 0) {
+    hw = (uint8_t)(((uint16_t)percent * 31 + 50) / 100);
+    if (hw < 1) hw = 1;
+    if (hw > 31) hw = 31;
+  }
+  s_ledGlobal = hw;
+}
+
 void displayWake() {
+  if (s_screenLocked) return;
   s_wakeUntil = millis() + SCREEN_WAKE_MS;
   applyBacklight();
 }
 
 // No direct write: switching off is a state change like any other, so it
 // fades out through the same path instead of cutting to black.
-void displaySetLed(bool on) { s_ledOn = on; }
+void displaySetLed(bool on) {
+  s_ledOn = on;
+  if (on && s_ledGlobal == 0) s_ledGlobal = LED_BRIGHTNESS;
+}
 
 void displaySetWaiting(bool waiting) { s_ledWaiting = waiting; }
 
@@ -385,7 +470,21 @@ static bool drawQrJoin(int16_t x, int16_t y, const String &payload) {
   return esp_qrcode_generate(&cfg, payload.c_str()) == ESP_OK && s_qrDrawn;
 }
 
+// The credentials screen currently on show, so a repeat call with the same
+// ones does not clear and redraw it (that full repaint is what read as a
+// flicker when tapping while it was already up).
+static bool s_joinActive = false;
+static String s_joinSsid, s_joinPass;
+
 void displayShowJoin(const String &ssid, const String &password) {
+  if (s_joinActive && ssid == s_joinSsid && password == s_joinPass) {
+    applyBacklight();  // keep it lit; caller extends the window
+    return;
+  }
+  s_joinActive = true;
+  s_joinSsid = ssid;
+  s_joinPass = password;
+
   s_fullRepaint = true;
   s_splash = true;
   applyBacklight();
@@ -421,6 +520,10 @@ void displayShowJoin(const String &ssid, const String &password) {
 }
 
 void displayShowMessage(const String &title, const String &detail) {
+  // Only reset/restart notices call this. Make the deliberate notice visible
+  // even when the reset was requested from the insertion lock.
+  displaySetScreenLocked(false);
+  s_joinActive = false;
   s_fullRepaint = true;
   s_splash = true;
   displayWake();
@@ -454,6 +557,7 @@ void displayUpdate(const DisplayInfo &info) {
   if (s_fullRepaint || s_splash) {
     s_fullRepaint = false;
     s_splash = false;
+    s_joinActive = false;  // repainting the dashboard leaves the join screen
     s_arrangement = info.arrangement;
     s_name = info.name;
     placeFields();
