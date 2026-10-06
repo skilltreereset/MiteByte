@@ -26,8 +26,19 @@ static constexpr uint16_t C_LIME    = rgb(0xB6, 0xFF, 0x3C);
 static constexpr uint16_t C_RED     = rgb(0xFF, 0x3B, 0x30);
 static constexpr uint16_t C_AMBER   = rgb(0xFF, 0xA5, 0x00);
 
+// INITR_MINI160x80 assumes a (24, 0) RAM offset. This panel's visible area
+// starts further in, and the unwritten strips show as noise along the edges.
+class PanelST7735 : public Adafruit_ST7735 {
+ public:
+  using Adafruit_ST7735::Adafruit_ST7735;
+  void setOffsets(int8_t col, int8_t row) { setColRowStart(col, row); }
+};
+
+static constexpr int8_t TFT_COL_OFFSET = 26;
+static constexpr int8_t TFT_ROW_OFFSET = 1;
+
 static SPIClass tftSPI(FSPI);
-static Adafruit_ST7735 tft(&tftSPI, TFT_CS, TFT_DC, TFT_RST);
+static PanelST7735 tft(&tftSPI, TFT_CS, TFT_DC, TFT_RST);
 
 static uint8_t s_rotation = TFT_ROTATION;
 static bool s_screenOn = true;
@@ -227,7 +238,6 @@ static void placeFields() {
   }
 }
 
-// The panel clips its outermost row and column, so the frame sits inset.
 static constexpr int16_t FRAME_INSET = 3;
 static constexpr int16_t FRAME_ARM = 9;
 static constexpr int16_t FRAME_THICK = 2;
@@ -322,6 +332,7 @@ void displayBegin() {
 
   tftSPI.begin(TFT_SCLK, -1, TFT_MOSI, TFT_CS);
   tft.initR(INITR_MINI160x80);
+  tft.setOffsets(TFT_COL_OFFSET, TFT_ROW_OFFSET);  // before setRotation, which reads them
   tft.setRotation(s_rotation);
   tft.invertDisplay(true);
   tft.fillScreen(C_BG);
