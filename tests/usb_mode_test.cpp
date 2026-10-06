@@ -7,7 +7,7 @@
 #include <freertos/semphr.h>
 #include <freertos/task.h>
 #include <soc/usb_dwc_struct.h>
-#include "../fleabyte/usb_mode.h"
+#include "../mitebyte/usb_mode.h"
 
 static bool usbContext = false, failAllocation = false, failInit = false;
 static std::vector<int> events;

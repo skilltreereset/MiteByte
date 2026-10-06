@@ -5,7 +5,7 @@ import csv
 root = Path(__file__).resolve().parents[1]
 for filename, app1, filesystem, fs_size in (
     ("partitions.csv", 0x610000, 0xC10000, 0x3E8000),
-    ("fleabyte/partitions.csv", 0x410000, 0x810000, 0x7E0000),
+    ("mitebyte/partitions.csv", 0x410000, 0x810000, 0x7E0000),
 ):
     entries = {}
     for row in csv.reader((root / filename).read_text().splitlines()):

@@ -1,6 +1,5 @@
 # --- Build output (Arduino / arduino-cli) ---
 build/
-wifi_ducky_s3/build/
 release/
 
 # --- PlatformIO (local build setup, not part of the upstream project) ---
@@ -9,7 +8,7 @@ release/
 .cache/
 compile_commands.json
 platformio.ini
-# Root PlatformIO partition file; the tracked one is fleabyte/partitions.csv.
+# Root PlatformIO partition file; the tracked one is mitebyte/partitions.csv.
 /partitions.csv
 
 # --- Editors / IDE ---

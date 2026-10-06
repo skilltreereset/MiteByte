@@ -5,7 +5,7 @@ import sys
 from elftools.elf.elffile import ELFFile
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-path = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / ".pio/build/fleabyte/firmware.elf"
+path = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / ".pio/build/mitebyte/firmware.elf"
 with path.open("rb") as stream:
     elf = ELFFile(stream)
     symbols = list(elf.get_section_by_name(".symtab").iter_symbols())

@@ -1,4 +1,4 @@
-#include "../fleabyte/src/tools/usb_tx_scratch.h"
+#include "../mitebyte/src/tools/hotspot/usb_tx_scratch.h"
 #include <cassert>
 #include <cstdio>
 #include <mutex>

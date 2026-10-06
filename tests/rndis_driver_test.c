@@ -1,9 +1,9 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
-#include "../fleabyte/src/usb_rndis/rndis_config.h"
-#include "../fleabyte/src/usb_rndis/rndis_api.h"
-#include "../fleabyte/src/usb_rndis/rndis_protocol.h"
+#include "../mitebyte/src/usb_ethernet/rndis_config.h"
+#include "../mitebyte/src/usb_ethernet/rndis_api.h"
+#include "../mitebyte/src/usb_ethernet/rndis_protocol.h"
 
 uint8_t flea_rndis_mac_address[6] = {2,0,0,0,0,1};
 static bool busy[256], reject;

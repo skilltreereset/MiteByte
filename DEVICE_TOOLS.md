@@ -1,18 +1,20 @@
 # Built-in device tools
 
-Tools are firmware modules with a shared lifecycle. They appear beside payloads
-in the Library but do not run through the DuckyScript interpreter. Adding a tool
+Tools are firmware modules with a shared lifecycle. They appear beside scripts
+in the Library but do not run through the macro script interpreter. Adding a tool
 requires rebuilding firmware; uploading executable plugins at runtime is not
 supported.
 
 ## Adding a tool
 
-1. Put implementation files in `fleabyte/src/tools/`. Arduino compiles the
-   sketch's `src/` directory recursively.
+1. Put the tool's implementation files in their own folder under
+   `mitebyte/src/tools/<tool>/` (one folder per plug-and-play tool). Arduino
+   compiles the sketch's `src/` directory recursively. Shared infrastructure
+   (e.g. SD diagnostic logging) lives outside `src/tools/`, under `src/diagnostics/`.
 2. Export a `const ToolPlugin` from a small header. The interface is in
-   `fleabyte/tools.h`: ID, title, description, begin/start/stop/tick/status,
-   notice, optional setup download metadata and an optional library setup payload name.
-3. Include that header in `fleabyte/tools.cpp` and add its address to `s_plugins`.
+   `mitebyte/tools.h`: ID, title, description, begin/start/stop/tick/status,
+   notice, optional setup download metadata and an optional library setup script name.
+3. Include that header in `mitebyte/tools.cpp` and add its address to `s_plugins`.
 4. Return compact status text and label/value details. The HTTP API and web UI
    consume that metadata without branches for individual tools.
 
@@ -26,9 +28,9 @@ thread-safe handoff.
 The registry allows one active tool. Starting while insertion/hard locked is
 rejected. Hard lock stops the tool before shutting down Wi-Fi. Screen lock
 leaves it running. A saved startup tool waits until the device goes online and
-any armed/running payload finishes. Stopping cancels a pending startup for that
+any armed/running script finishes. Stopping cancels a pending startup for that
 online session. The startup preference is stored in LittleFS, outside the
-payload directory, and survives firmware updates. Resetting settings clears it.
+script directory, and survives firmware updates. Resetting settings clears it.
 
 ## USB ownership
 
@@ -40,7 +42,7 @@ quiesce their packet producers before switching; the call reports restart errors
 Stopping restores the normal active profile; entering standby restores the
 storage-only profile. Keyboard readiness is false while a tool owns USB.
 
-Do not switch profiles during host drive IO. The hotspot checks that payload
+Do not switch profiles during host drive IO. The hotspot checks that script
 execution is idle before starting, and `/api/run` rejects runs while a tool is
 active. USB callbacks use copied, bounded queues; forwarding runs through an
 ESP-IDF Ethernet netif and the existing AP's IPv4 NAPT.
@@ -74,14 +76,14 @@ the development device; sustained throughput and reliability still need testing.
 
 RNDIS is a private application driver beside Arduino's built-in USB classes,
 using distinct symbols. No installed SDK files are patched. Its upstream source,
-license and local adaptations are in `fleabyte/src/usb_rndis/UPSTREAM.md`.
+license and local adaptations are in `mitebyte/src/usb_ethernet/UPSTREAM.md`.
 The build uses Arduino ESP32 3.3.12 (TinyUSB 0.21 driver interface); older cores
 are not validated.
 
 ## API
 
 `GET /api/state` includes `tools`, `activeTool` and `startupTool`, preserving the
-existing `payloads` array. Tool actions accept URL-encoded `id`:
+existing `scripts` array. Tool actions accept URL-encoded `id`:
 
 | Endpoint | Effect |
 |---|---|
@@ -94,10 +96,10 @@ The Windows package is generated from the reviewed PowerShell source by
 `python tools/build_helpers.py`. Build/release scripts run the generator. The
 generated firmware headers are included in the repository for Arduino IDE builds;
 regenerate them whenever the helper changes. The generator also bundles the same
-installer into `13-windows-hotspot-setup.txt`, a one-time keyboard payload. This
+installer into `13-windows-hotspot-setup.txt`, a one-time keyboard script. This
 uses the existing interpreter, leaves administrator approval to the user, and
 does not run automatically when starting a tool. Initial seeding adds it to
-the library without overwriting edited payloads. The Windows helper is optional and
+the library without overwriting edited scripts. The Windows helper is optional and
 separate from device startup. See `tools/windows/README.md`.
 
 ### Wi-Fi address assignment diagnostics
@@ -154,7 +156,7 @@ and 9 (brownout). They describe the reset mechanism, not its underlying cause.
 
 Hotspot diagnostics run automatically for each sharing session when an SD card
 is present. Starting takes the card away from USB mass storage. A background
-writer saves `/FLEABYTE-DIAGNOSTICS/hotspot.log`, retaining the preceding session
+writer saves `/MITEBYTE-DIAGNOSTICS/hotspot.log`, retaining the preceding session
 as `hotspot.previous.log`; each file is bounded to about 512 KiB. Stopping waits
 for queued records to be flushed and closed before restoring the previous USB
 drive setting. MSC sector operations and read-ahead share a gate, so revoking
@@ -169,7 +171,7 @@ Records include build/reset information, USB restart stages and RNDIS control
 requests, packet filters, USB resets, DHCP message types and transaction IDs,
 ARP and DNS protocol headers, address/gateway changes, forwarding state, queues,
 transfer completions/errors, DNS statistics, and memory/stack counters every two
-seconds. Text logs contain no packet bodies, DNS names, Wi-Fi keys or payload scripts.
+seconds. Text logs contain no packet bodies, DNS names, Wi-Fi keys or script contents.
 The bounded nonblocking queue reports dropped diagnostic records; its writer
 runs outside USB and TCP/IP callbacks. SD failure is shown in the status panel
 and does not prevent the hotspot from starting.
@@ -204,7 +206,7 @@ the total SDK call-chain stack usage, which still needs hardware monitoring.
 Start a read-only collector on Windows before reproducing the issue:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/windows/Collect-FleaByteDiagnostics.ps1 -Watch -WaitForNew
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/windows/Collect-MiteByteDiagnostics.ps1 -Watch -WaitForNew
 ```
 
 It watches for the diagnostic folder on a mounted card, copies current and

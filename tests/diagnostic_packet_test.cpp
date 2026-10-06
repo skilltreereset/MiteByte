@@ -1,4 +1,4 @@
-#include "../fleabyte/src/tools/diagnostic_packet.h"
+#include "../mitebyte/src/diagnostics/diag_packet.h"
 #include <cassert>
 #include <cstring>
 #include <cstdio>

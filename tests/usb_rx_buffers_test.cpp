@@ -1,5 +1,5 @@
-#include "../fleabyte/src/tools/usb_rx_buffers.h"
-#include "../fleabyte/src/tools/usb_rx_backpressure.h"
+#include "../mitebyte/src/tools/hotspot/usb_rx_buffers.h"
+#include "../mitebyte/src/tools/hotspot/usb_rx_backpressure.h"
 #include <cassert>
 #include <cstring>
 #include <deque>

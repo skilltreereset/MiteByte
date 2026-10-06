@@ -6,8 +6,8 @@
 #include <algorithm>
 #include <cerrno>
 #include <cstring>
-#include "../fleabyte/captive_dns.h"
-#include "../fleabyte/src/tools/hotspot_dns.cpp"
+#include "../mitebyte/captive_dns.h"
+#include "../mitebyte/src/tools/hotspot/hotspot_dns.cpp"
 
 struct Datagram { sockaddr_in peer; std::vector<uint8_t> bytes; };
 struct Socket {

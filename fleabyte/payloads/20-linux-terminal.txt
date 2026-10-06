@@ -1,7 +1,0 @@
-META linux
-REM Linux/GNOME: opens a terminal and prints a message.
-REM CTRL ALT T is the GNOME shortcut; adjust for your desktop.
-DELAY 300
-CTRL ALT t
-DELAY 1500
-STRINGLN echo "Fleabyte - HID test $(date)"

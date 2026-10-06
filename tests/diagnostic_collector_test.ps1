@@ -1,17 +1,17 @@
 $ErrorActionPreference='Stop'
-$scriptPath=Join-Path $PSScriptRoot '../tools/windows/Collect-FleaByteDiagnostics.ps1'
+$scriptPath=Join-Path $PSScriptRoot '../tools/windows/Collect-MiteByteDiagnostics.ps1'
 $tokens=$null;$errors=$null
 [Management.Automation.Language.Parser]::ParseFile($scriptPath,[ref]$tokens,[ref]$errors)|Out-Null
 if($errors.Count){throw ($errors.Message -join ';')}
 . $scriptPath
-$fixture=Join-Path ([IO.Path]::GetTempPath()) ('fleabyte-log-test-'+[guid]::NewGuid().ToString('N'))
+$fixture=Join-Path ([IO.Path]::GetTempPath()) ('mitebyte-log-test-'+[guid]::NewGuid().ToString('N'))
 try {
-  $card=Join-Path $fixture 'card';$logs=Join-Path $card 'FLEABYTE-DIAGNOSTICS';$output=Join-Path $fixture 'output'
+  $card=Join-Path $fixture 'card';$logs=Join-Path $card 'MITEBYTE-DIAGNOSTICS';$output=Join-Path $fixture 'output'
   New-Item -ItemType Directory -Path $logs -Force|Out-Null
   $current=Join-Path $logs 'hotspot.log'
   Set-Content -LiteralPath $current -Value 'Unrelated file'
   if(@(Find-DiagnosticLog @($card)).Count){throw 'Collector accepted an unrelated file'}
-  Set-Content -LiteralPath $current -Value "FLEABYTE_DIAGNOSTICS_V1`n1 SESSION test`n2 SESSION_END"
+  Set-Content -LiteralPath $current -Value "MITEBYTE_DIAGNOSTICS_V1`n1 SESSION test`n2 SESSION_END"
   Set-Content -LiteralPath (Join-Path $logs 'hotspot.previous.log') -Value 'previous session'
   if(@(Find-DiagnosticLog @($card)).Count -ne 1){throw 'Valid SD log was not found'}
   # Keep host inspection mocked; this test never changes or inspects networking.
@@ -38,6 +38,6 @@ try {
   $resolvedFixture=[IO.Path]::GetFullPath($fixture)
   $resolvedTemp=[IO.Path]::GetFullPath([IO.Path]::GetTempPath())
   if(-not $resolvedFixture.StartsWith($resolvedTemp,[StringComparison]::OrdinalIgnoreCase) -or
-     [IO.Path]::GetFileName($resolvedFixture) -notmatch '^fleabyte-log-test-[0-9a-f]{32}$') { throw 'Unsafe test cleanup path' }
+     [IO.Path]::GetFileName($resolvedFixture) -notmatch '^mitebyte-log-test-[0-9a-f]{32}$') { throw 'Unsafe test cleanup path' }
   if(Test-Path -LiteralPath $resolvedFixture){Remove-Item -LiteralPath $resolvedFixture -Recurse -Force}
 }

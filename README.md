@@ -1,109 +1,93 @@
-# Fleabyte
+# MiteByte
 
-Modern firmware for the LilyGO T-Dongle S3. Web UI, 12 layouts, USB storage,
-no cloud. Fork of [FleaByte](https://github.com/b3rt1ng/FleaByte), adding device
-tools, USB-to-Wi-Fi sharing, insertion locking, and LED settings.
+**MiteByte is a fork of [FleaByte](https://github.com/b3rt1ng/FleaByte).** It is
+firmware for the LilyGO T-Dongle S3: a programmable USB HID keyboard with a
+self-hosted web UI for keyboard automation, built-in device tools, and USB mass
+storage. Everything runs on the device — no cloud.
 
-**0.5.0-beta.1 — Hotspot Tool beta.** USB internet sharing, Wi-Fi client browsing
-and DNS replies have been verified on one T-Dongle S3 and Windows PC. Sustained
-throughput, gaming latency and broader Windows compatibility remain unmeasured.
+It adds, on top of upstream: a built-in device-tool framework, a USB-to-Wi-Fi
+internet-sharing tool, an insertion lock with gesture unlock, LED/display
+settings, and a per-tool source layout with neutral module naming.
 
-![Fleabyte status screen](screens/screen-idle.png)
+> Contributions back to upstream are welcome if the original author is
+> interested. The changes here are extensive, so a single pull request would be
+> large; the full history lives in this fork.
 
-Plug it in, then unlock it with three short button presses followed by two
-long presses (`SSSLL`; long means at least 200 ms by default). Until unlocked,
-the dongle stays dark with Wi-Fi off and exposes only mass storage. Startup standby
-can be disabled in settings; armed boot runs still stay locked and dark. Scan the code on
-its screen to join, open the page, pick the keyboard layout of the machine
-it is plugged into, and run a script. Payloads and settings stay on the device;
-the editor needs no installation.
+![MiteByte status screen](screens/screen-idle.png)
 
 ## What it does
 
-* Keystroke scripting with a DuckyScript subset, from a web editor
+* Keyboard automation with a macro scripting language, edited in the browser
 * Twelve keyboard layouts, switchable at runtime and mid-script
-* Payload library stored on the dongle, editable from the browser
-* Built-in tools in the same library, with Start/Stop and optional startup after unlock
-* Beta USB-to-Wi-Fi hotspot: share the PC's internet with Wi-Fi devices
-* Wi-Fi join code on the screen, so a phone connects without typing a key
-* Cancellable countdown before a payload starts
-* Host detection, so a payload can wait for the machine instead of guessing
-* microSD exposed to the host as a removable drive, with a file browser
-* One-shot arming that fires the script you are editing at the next plug-in
-* Status screen with run progress, and a light that reports what it is doing
+* A script library stored on the device, editable from the web UI
+* Built-in device tools in the same library, with Start/Stop
+* **Wi-Fi Hotspot:** share the host PC's internet with Wi-Fi devices over a
+  private USB network interface (NAT + DNS forwarding)
+* A Wi-Fi join code on the screen, so a phone connects without typing
+* An insertion lock: the device stays dark and storage-only until unlocked with
+  a button gesture
+* microSD exposed to the host as a removable drive, with a web file browser
+* Status screen and an LED that reports what the device is doing
 
 | | |
 |---|---|
 | ![Access](screens/screen-access.png) | ![Running](screens/screen-running.png) |
-| Scan to join, or read the credentials | Running a payload |
+| Scan to join, or read the credentials | Status while a script runs |
 
 ## Scope of use
 
-Machines you own, or for which you hold written authorisation. This is a
-keystroke injection tool: it types into whatever it is plugged into.
-
-Execution is triggered from the web interface, or by arming a single run for
-the next plug-in from the bar under the editor. That arming is one shot and
-clears itself as it fires. An armed run enables the keyboard while the screen
-and Wi-Fi stay off; a pending hard lock blocks it. Nothing else runs on plug-in, and the
-button on the dongle never starts a payload.
+Machines you own, or for which you hold authorisation. This is a USB HID
+keyboard: it sends keystrokes to the machine it is connected to, so use it only
+where you are permitted to.
 
 ## Hardware
 
-A LilyGO T-Dongle S3 and nothing else. A microSD card is optional, and only
-used by the USB drive feature.
+A LilyGO T-Dongle S3. A microSD card is optional, used only by the USB drive
+feature.
 
 * [LilyGO store](https://lilygo.cc/products/t-dongle-s3)
 * [Amazon](https://www.amazon.fr/dp/B0BK9162QY)
-* [Alibaba](https://www.alibaba.com/pla/LILYGO-T-Dongle-S3-ESP32-S3-Development-Board-096_1601590830049.html)
 
-It has to be the **S3**. LilyGO also sells a T-Dongle C5, and the ESP32-C5
-has no USB OTG controller: it can only present a serial port, never a
-keyboard. The same goes for the C3, C6 and H2. Among the parts LilyGO uses,
-only the S2, S3 and P4 can do this at all.
+It has to be the **S3**: among the ESP32 variants LilyGO uses, only the S2, S3
+and P4 have the USB-OTG controller this firmware needs.
 
 ## Installing
 
-**[Flash it from your browser](https://b3rt1ng.github.io/FleaByte/)**, in
-Chrome or Edge on a desktop. Nothing to install: hold the button while
-plugging the dongle in, click Install, pick the serial port.
+Build from source with PlatformIO:
 
-Or take the image from a [release](../../releases) and write it yourself:
+```sh
+pio run -e mitebyte -t upload
+```
+
+Or write a release image with esptool:
 
 ```sh
 esptool --chip esp32s3 --port /dev/ttyACM0 write-flash 0x0 firmware.bin
 ```
 
-Either way the image stops before the filesystem partition, so an update
-keeps saved payloads and settings.
+The image stops before the filesystem partition, so an update keeps your saved
+scripts and settings.
 
 ## Documentation
 
-* [DOCS.md](DOCS.md) covers building from source, the script commands, the
-  settings and the USB drive
-* [NOTES.md](NOTES.md) collects the hardware quirks worth knowing before
-  changing anything
-* [Windows sharing setup](tools/windows/README.md) explains the optional hotspot
-  companion and manual alternative. Windows setup requires administrator approval;
-  performance and broader Windows compatibility still need validation.
-* [DEVICE_TOOLS.md](DEVICE_TOOLS.md) describes the compiled-in plugin interface
-
-## Roadmap
-
-* Default payloads live as files in [`fleabyte/payloads/`](fleabyte/payloads) and
-  are embedded at build time, not written as C constants.
-* **TODO:** a tool to load payloads from the SD card (possible future feature).
+* [DOCS.md](DOCS.md) — building from source, the script commands, settings and
+  the USB drive
+* [DEVICE_TOOLS.md](DEVICE_TOOLS.md) — the compiled-in device-tool interface
+* [NOTES.md](NOTES.md) — hardware quirks worth knowing before changing anything
+* [Windows sharing setup](tools/windows/README.md) — the optional hotspot
+  companion for Windows and the manual alternative
 
 ## Credits
 
-Forked from [b3rt1ng/FleaByte](https://github.com/b3rt1ng/FleaByte) (MIT).
+Forked from [b3rt1ng/FleaByte](https://github.com/b3rt1ng/FleaByte) (MIT); the
+original license and copyright are retained in [LICENSE](LICENSE).
 
 Pin assignments and panel initialisation values come from
 [LilyGO's T-Dongle S3 examples](https://github.com/Xinyuan-LilyGO/T-Dongle-S3)
 (MIT). The display is driven through
 [Adafruit GFX](https://github.com/adafruit/Adafruit-GFX-Library) and
-[Adafruit ST7735](https://github.com/adafruit/Adafruit-ST7735-Library)
-(BSD). Keyboard layout tables and the QR encoder ship with the
+[Adafruit ST7735](https://github.com/adafruit/Adafruit-ST7735-Library) (BSD).
+Keyboard layout tables and the QR encoder ship with the
 [ESP32 Arduino core](https://github.com/espressif/arduino-esp32).
 
 ## License

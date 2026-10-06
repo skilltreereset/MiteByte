@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
-const page = readFileSync(new URL('../fleabyte/web_assets.h', import.meta.url), 'utf8');
+const page = readFileSync(new URL('../mitebyte/web_assets.h', import.meta.url), 'utf8');
 const js = page.match(/<script>([\s\S]*?)<\/script>/)[1];
 function element() {
   return {
@@ -32,7 +32,7 @@ const settings = {
   unlockSeq: 'SSSLL', hardlockSeq: 'SSSSS', hardlockEnabled: 1,
   longPressMs: 200, hardlockReinserts: 1, longPressMin: 50, longPressMax: 5000,
 };
-const state = { state: 'idle', payloads: [], layout: 'us', arrangement: 'QWERTY', armed: 0 };
+const state = { state: 'idle', scripts: [], layout: 'us', arrangement: 'QWERTY', armed: 0 };
 const context = vm.createContext({
   document: { querySelector: get,
     querySelectorAll: selector => selector === '.orient button' ? orientation : [],
@@ -154,9 +154,9 @@ rejectReset = false;
 
 // Hard lock cancels cleanly, reports persistence failures, and shows recovery.
 state.tools = [{id:'usb-hotspot', name:'Wi-Fi Hotspot', description:'Share PC internet',
-  running:0, state:'stopped', message:'Stopped', details:[{label:'Wi-Fi', value:'FleaByte'}],
+  running:0, state:'stopped', message:'Stopped', details:[{label:'Wi-Fi', value:'MiteByte'}],
   notice:'Starting reconnects USB', setupUrl:'/api/tools/setup?id=usb-hotspot',
-  setupPayloadName:'13-windows-hotspot-setup.txt'}];
+  setupScriptName:'13-windows-hotspot-setup.txt'}];
 state.activeTool = ''; state.startupTool = '';
 await vm.runInContext('refresh()', context);
 get('#script').value = 'REM unsaved';
@@ -167,8 +167,8 @@ assert.equal(get('#script').value, 'REM unsaved');
 assert.equal(get('#toolstart').disabled, false);
 assert.equal(get('#toolstop').disabled, true);
 assert.equal(get('#toolsetupdownload').href, '/api/tools/setup?id=usb-hotspot');
-assert.equal(get('#toolsetuppayload').hidden, false);
-assert.equal(get('#toolsetuppayload').disabled, false);
+assert.equal(get('#toolsetupscript').hidden, false);
+assert.equal(get('#toolsetupscript').disabled, false);
 rejectTool = true;
 await get('#toolstart').onclick();
 assert.equal(get('#toolactionstatus').textContent, 'Tool request failed');
@@ -176,7 +176,7 @@ assert.equal(get('#toolstart').disabled, false);
 rejectTool = false;
 await get('#toolstart').onclick();
 assert.equal(state.activeTool, 'usb-hotspot');
-assert.equal(get('#toolsetuppayload').disabled, true, 'Setup requires the keyboard USB profile');
+assert.equal(get('#toolsetupscript').disabled, true, 'Setup requires the keyboard USB profile');
 assert.equal(get('#toolstop').disabled, false);
 assert.equal(get('#run').disabled, true);
 get('#toolauto').checked = true;
@@ -187,7 +187,7 @@ get('#toolauto').checked = false;
 await get('#toolauto').onchange();
 assert.equal(get('#toolauto').checked, true, 'Rejected startup changes restore the saved preference');
 rejectToolStartup = false;
-await vm.runInContext("openPayload('example.txt')", context);
+await vm.runInContext("openScript('example.txt')", context);
 assert.equal(get('#script').value, 'REM unsaved');
 assert.equal(vm.runInContext('dirty', context), true);
 assert.equal(get('#editor').hidden, false);
@@ -203,12 +203,12 @@ state.state = 'idle';
 await vm.runInContext('refresh()', context);
 
 vm.runInContext("dirty = false; openTool('usb-hotspot')", context);
-await get('#toolsetuppayload').onclick();
+await get('#toolsetupscript').onclick();
 assert.equal(get('#editor').hidden, false);
 assert.equal(get('#toolpanel').hidden, true);
 assert.equal(get('#name').value, '13-windows-hotspot-setup.txt');
 assert.match(get('#script').value, /One-time hotspot setup/);
-assert.equal(calls.some(c => c.path === '/api/payload?name=13-windows-hotspot-setup.txt'), true);
+assert.equal(calls.some(c => c.path === '/api/script?name=13-windows-hotspot-setup.txt'), true);
 assert.equal(calls.some(c => c.path === '/api/run'), false, 'Opening setup does not execute it');
 
 calls.length = 0;

@@ -10,15 +10,15 @@ subprocess.run([sys.executable, str(ROOT / "tests/check_partitions.py")], check=
 compiler = shutil.which("g++") or shutil.which("clang++")
 if not compiler:
     raise SystemExit("Install g++ or clang++ to run the native regression tests")
-with tempfile.TemporaryDirectory(prefix="fleabyte-tests-") as folder:
+with tempfile.TemporaryDirectory(prefix="mitebyte-tests-") as folder:
     binary = pathlib.Path(folder) / "lock_test.exe"
     subprocess.run([
         compiler, "-std=c++17", "-Wall", "-Wextra",
-        "-I", str(ROOT / "tests/fakes"), "-I", str(ROOT / "fleabyte"),
+        "-I", str(ROOT / "tests/fakes"), "-I", str(ROOT / "mitebyte"),
         str(ROOT / "tests/lock_test.cpp"),
-        str(ROOT / "fleabyte/lock.cpp"),
-        str(ROOT / "fleabyte/lock_validation.cpp"),
-        str(ROOT / "fleabyte/ui_display.cpp"),
+        str(ROOT / "mitebyte/lock.cpp"),
+        str(ROOT / "mitebyte/lock_validation.cpp"),
+        str(ROOT / "mitebyte/ui_display.cpp"),
         "-o", str(binary),
     ], check=True)
     subprocess.run([str(binary)], check=True)
@@ -39,7 +39,7 @@ with tempfile.TemporaryDirectory(prefix="fleabyte-tests-") as folder:
     binary = pathlib.Path(folder) / "hotspot_diagnostics_test.exe"
     subprocess.run([compiler, "-std=c++17", "-Wall", "-Wextra", "-pthread", "-DHOTSPOT_DIAGNOSTICS=1",
         "-I", str(ROOT / "tests/diagnostic_native"), "-I", str(ROOT / "tests/fakes"),
-        str(ROOT / "tests/hotspot_diagnostics_test.cpp"), str(ROOT / "fleabyte/src/tools/hotspot_diagnostics.cpp"),
+        str(ROOT / "tests/hotspot_diagnostics_test.cpp"), str(ROOT / "mitebyte/src/diagnostics/diag_log.cpp"),
         "-o", str(binary)], check=True)
     subprocess.run([str(binary)], check=True)
     binary = pathlib.Path(folder) / "diagnostic_packet_test.exe"
@@ -48,15 +48,15 @@ with tempfile.TemporaryDirectory(prefix="fleabyte-tests-") as folder:
     binary = pathlib.Path(folder) / "tools_test.exe"
     subprocess.run([
         compiler, "-std=c++17", "-Wall", "-Wextra",
-        "-I", str(ROOT / "tests/fakes"), "-I", str(ROOT / "fleabyte"),
-        str(ROOT / "tests/tools_test.cpp"), str(ROOT / "fleabyte/tools.cpp"),
+        "-I", str(ROOT / "tests/fakes"), "-I", str(ROOT / "mitebyte"),
+        str(ROOT / "tests/tools_test.cpp"), str(ROOT / "mitebyte/tools.cpp"),
         "-o", str(binary),
     ], check=True)
     subprocess.run([str(binary)], check=True)
     binary = pathlib.Path(folder) / "hotspot_dns_test.exe"
     subprocess.run([
         compiler, "-std=c++17", "-Wall", "-Wextra",
-        "-I", str(ROOT / "tests/fakes"), "-I", str(ROOT / "fleabyte"),
+        "-I", str(ROOT / "tests/fakes"), "-I", str(ROOT / "mitebyte"),
         str(ROOT / "tests/hotspot_dns_test.cpp"), "-o", str(binary),
     ], check=True)
     subprocess.run([str(binary)], check=True)

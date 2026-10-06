@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Flash Fleabyte</title>
+<title>Flash MiteByte</title>
 <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
 <style>
 :root{
@@ -57,7 +57,7 @@ a{color:var(--accent)}
 </head>
 <body>
 <main>
-  <h1>Fleabyte</h1>
+  <h1>MiteByte</h1>
   <p>Flash the firmware onto a LilyGO T-Dongle S3 straight from this page.
   Works in Chrome and Edge on desktop.</p>
 
@@ -97,7 +97,7 @@ a{color:var(--accent)}
     <summary>Flash from a terminal instead</summary>
     <pre>esptool --chip esp32s3 --port /dev/ttyACM0 write-flash 0x0 firmware.bin</pre>
     <p style="margin:.6rem 0 0">The image stops before the filesystem
-    partition, so saved payloads and settings survive an update.</p>
+    partition, so saved scripts and settings survive an update.</p>
   </details>
 
   <footer>

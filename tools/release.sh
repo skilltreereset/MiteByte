@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Builds a single flashable image plus its checksum into release/.
 # The image stops before the filesystem partition, so flashing it keeps
-# saved payloads and settings.
+# saved scripts and settings.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -33,10 +33,10 @@ fi
 VERSION="$(sed -n 's/.*FIRMWARE_VERSION *"\([^"]*\)".*/\1/p' "$ROOT/$SKETCH/config.h")"
 
 # Consumed by ESP Web Tools. new_install_prompt_erase stays false so an
-# update keeps the payloads and settings on the filesystem partition.
+# update keeps the scripts and settings on the filesystem partition.
 cat > "$OUT/manifest.json" <<JSON
 {
-  "name": "Fleabyte",
+  "name": "MiteByte",
   "version": "${VERSION}",
   "new_install_prompt_erase": false,
   "builds": [

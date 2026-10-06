@@ -6,7 +6,7 @@ Run from the repository root:
 python tests/run_native.py
 python tests/run_rndis_driver.py
 node tests/web_ui_test.mjs
-python tests/check_usb_descriptors.py .pio/build/fleabyte/firmware.elf
+python tests/check_usb_descriptors.py .pio/build/mitebyte/firmware.elf
 python tests/helper_package_test.py
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/windows_helper_test.ps1
 ```
@@ -36,7 +36,7 @@ DOM/API. It checks disabled screen controls, both unlock actions, LED-only reque
 while locked, conflicting gestures, the startup switch, reset errors, and hard-lock recovery and errors.
 It does not verify browser layout or the firmware's HTTP server.
 Tool checks cover selection without losing unsaved edits, Start/Stop failures,
-exclusive execution, payload-busy state and failed startup saves.
+exclusive execution, script-busy state and failed startup saves.
 
 The descriptor check needs pyelftools (included in the local PlatformIO Python
 environment) and a built ELF. It inspects the linked descriptor bytes and verifies
@@ -58,7 +58,7 @@ heap/fragmentation reserves and concurrent acquire/release. RNDIS checks also
 reject an OUT renewal and verify its retry without double-arming an endpoint.
 
 The package check verifies that the firmware download and compressed keyboard
-payload contain the same current PowerShell helper and launcher, stay within
+script contain the same current PowerShell helper and launcher, stay within
 size limits, and include no automatic elevation-response keystrokes. The
 PowerShell check parses the actual helper and typed bootstrap, verifies that
 Windows PowerShell can unpack the exact installer in memory without running it,
@@ -66,7 +66,7 @@ and exercises route selection, sharing conflicts, idempotence and rollback
 against mocks. It never installs a task or changes host networking.
 
 On hardware, check cold locked boot, gesture unlock, screen settings while
-locked, hard lock during a harmless test payload, reinsertion counts, and an
+locked, hard lock during a harmless test script, reinsertion counts, and an
 armed boot run with display/Wi-Fi off. USB reconnects when changing interface
 sets; perform these checks without a host file transfer in progress.
 
@@ -112,7 +112,7 @@ full queues, Ethernet frame bounds and startup allocation failure. Verify the
 compiled ESP32-S3 callback/worker frames after building:
 
 ```powershell
-python tests/check_hotspot_stack.py .pio/build/fleabyte/firmware.elf
+python tests/check_hotspot_stack.py .pio/build/mitebyte/firmware.elf
 ```
 
 This rejects the previous 1.5 KiB automatic frame allocations. It does not bound

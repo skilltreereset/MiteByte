@@ -1,5 +1,5 @@
-#include "../fleabyte/src/tools/hotspot_diagnostics.h"
-#include "../fleabyte/usb_drive.h"
+#include "../mitebyte/src/diagnostics/diag_log.h"
+#include "../mitebyte/usb_drive.h"
 #include <freertos/queue.h>
 #include <freertos/semphr.h>
 #include <freertos/task.h>

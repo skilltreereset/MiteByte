@@ -2,10 +2,10 @@
 #include <cstdio>
 #include <map>
 #include "tools.h"
-#include "../fleabyte/src/usb_rndis/rndis_validate.h"
-#include "../fleabyte/src/tools/dns_packet.h"
-#include "../fleabyte/src/tools/net_rules.h"
-#include "../fleabyte/src/tools/usb_rx_backpressure.h"
+#include "../mitebyte/src/usb_ethernet/rndis_validate.h"
+#include "../mitebyte/src/tools/hotspot/dns_packet.h"
+#include "../mitebyte/src/tools/hotspot/net_rules.h"
+#include "../mitebyte/src/tools/hotspot/usb_rx_backpressure.h"
 #include <deque>
 
 static String testStartup;

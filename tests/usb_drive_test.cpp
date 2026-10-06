@@ -1,6 +1,6 @@
 // Include production storage code so the fake MSC host can invoke the actual
 // sector callbacks and the watch task can run a single simulated retry.
-#include "../fleabyte/usb_drive.cpp"
+#include "../mitebyte/usb_drive.cpp"
 #include <atomic>
 #include <cassert>
 #include <chrono>
@@ -52,13 +52,13 @@ int esp_partition_read(const esp_partition_t *, size_t offset, void *data, size_
   assert(offset + size <= crash.size()); std::memcpy(data, crash.data() + offset, size); return 0;
 }
 bool FakeSd::rename(const char *from, const char *to) {
-  if (std::strcmp(from, "/FLEABYTE-DIAGNOSTICS/panic.tmp") || std::strcmp(to, "/FLEABYTE-DIAGNOSTICS/panic.bin")) return false;
+  if (std::strcmp(from, "/MITEBYTE-DIAGNOSTICS/panic.tmp") || std::strcmp(to, "/MITEBYTE-DIAGNOSTICS/panic.bin")) return false;
   publishedCrash = true; return true;
 }
 uint32_t millis() { return 42; }
 size_t File::write(const uint8_t *data, size_t size) {
   assert(!media && activeDisk == 0); // boot record precedes host access
-  if (!std::strcmp(path, "/FLEABYTE-DIAGNOSTICS/panic.tmp")) {
+  if (!std::strcmp(path, "/MITEBYTE-DIAGNOSTICS/panic.tmp")) {
     exportedCrash.insert(exportedCrash.end(), data, data + size); return size;
   }
   records.emplace_back(reinterpret_cast<const char *>(data), size); return size;

@@ -1,0 +1,10 @@
+META windows
+REM Windows: opens Notepad and writes a line of proof.
+DELAY 300
+GUI r
+DELAY 600
+STRING notepad
+ENTER
+DELAY 1200
+STRINGLN Script executed from MiteByte.
+STRING Test machine only.

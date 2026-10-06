@@ -1,0 +1,12 @@
+REM Checks that the selected layout matches the machine's keyboard.
+REM Open a text editor BEFORE running this script.
+REM These are the characters that move between AZERTY and QWERTY.
+DELAY 500
+STRINGLN --- MiteByte layout test ---
+STRINGLN azertyuiop qwertyuiop
+STRINGLN AZERTYUIOP QWERTYUIOP
+STRINGLN 0123456789
+STRINGLN @ # $ % & * ( ) - _ = +
+STRINGLN / \ | [ ] { } < > ^ ~
+STRINGLN ! ? : ; , . ' "
+STRINGLN If this line reads correctly, the layout is right.

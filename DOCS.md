@@ -1,4 +1,4 @@
-# Fleabyte documentation
+# MiteByte documentation
 
 Everything beyond getting one running. The overview lives in the
 [README](README.md), and the hardware quirks in [NOTES.md](NOTES.md).
@@ -66,18 +66,18 @@ In Settings → Startup & lock, **Start in standby** controls ordinary startup.
 It defaults to on and changes take effect on the next boot. Turn it off to start
 Wi-Fi, the UI and the keyboard automatically. A pending hard lock overrides this
 switch. An armed **Fire after boot** run also keeps startup locked and dark,
-regardless of the switch, so only the payload's keyboard execution comes up.
+regardless of the switch, so only the script's keyboard execution comes up.
 
 The screen shows the network name and password. Both derive from the device
 MAC, so every dongle starts with different credentials:
 
 ```
-Fleabyte-8218
+MiteByte-8218
 flea-A0058218
 ```
 
 Join the network and the captive portal opens the page. Otherwise go to
-`http://192.168.4.1` or `http://fleabyte.local`. Both can be changed in
+`http://192.168.4.1` or `http://mitebyte.local`. Both can be changed in
 settings.
 
 Run `00-test-layout.txt` into a text editor on the target machine before
@@ -88,7 +88,7 @@ mismatch is obvious at a glance.
 
 A mistyped Wi-Fi password would lock you out of the only interface. Hold the
 button for ten seconds in any state: settings, pending hard lock and the armed
-boot run are cleared. The payload library is kept. Unlock with the default
+boot run are cleared. The script library is kept. Unlock with the default
 gesture again to reach the built-in network.
 
 ### Screen lock and hard lock
@@ -104,7 +104,7 @@ if Screen is off, it stays off until a normal button tap briefly wakes it.
 
 While insertion-locked or screen-locked, `SSSSS` arms hard lock by default.
 It immediately returns to standby: no display or LED, no Wi-Fi/web access,
-no HID or serial interface, and any running payload is stopped. Mass storage
+no HID or serial interface, and any running script is stopped. Mass storage
 retains its exposure setting. USB briefly reconnects to remove the other interfaces.
 Hard lock does not reboot or consume a reinsertion when it is armed.
 
@@ -116,7 +116,7 @@ an error. The button uses the saved reinsertion count.
 
 The configured number of subsequent boots remains hard-locked; the following
 boot permits unlocking. The default is one locked reinsertion, so replug twice
-to recover. An armed boot payload stays queued while hard-locked and can run
+to recover. An armed boot script stays queued while hard-locked and can run
 on the first boot after the lockout ends. Factory reset clears both.
 
 Both gestures, the long-press threshold and the hard-lock count are configurable.
@@ -125,10 +125,10 @@ saved by older firmware with conflicting gestures fall back to `SSSLL` / `SSSSS`
 
 ## Device tools
 
-The Library contains payload scripts and built-in tools. **Wi-Fi Hotspot** shares
+The Library contains script scripts and built-in tools. **Wi-Fi Hotspot** shares
 the PC's current internet connection over USB to devices on the dongle's Wi-Fi.
 Select it to start/stop it and see connection status. **Start automatically after
-unlock** is saved separately from armed payloads; startup locks still apply.
+unlock** is saved separately from armed scripts; startup locks still apply.
 
 The tool reconnects USB as a network adapter and temporarily removes keyboard,
 serial and mass-storage interfaces. Stop it to restore normal USB use. Screen
@@ -138,11 +138,11 @@ the captive portal no longer intercepts internet DNS.
 
 Windows needs Internet Connection Sharing enabled once. Use the optional
 [Windows companion](tools/windows/README.md) or configure sharing manually.
-**Windows setup → Open setup payload** opens `13-windows-hotspot-setup.txt`
+**Windows setup → Open setup script** opens `13-windows-hotspot-setup.txt`
 in the editor. Run it while the tool is stopped to launch the same installer
 through the USB keyboard, with no file transfer. Match the PC keyboard layout,
 wait for installation to succeed, and then start the hotspot. Setup runs only
-when you run or explicitly arm that payload; starting the hotspot does not launch it.
+when you run or explicitly arm that script; starting the hotspot does not launch it.
 Administrator approval is required for this Windows configuration.
 An existing sharing connection to another adapter is left unchanged.
 
@@ -158,7 +158,7 @@ adding another compiled-in plugin.
 | Command | Effect |
 |---|---|
 | `REM text` | Comment, also `#` and `//` |
-| `META windows\|linux\|macos` | Tags the payload, shows an OS icon in the library |
+| `META windows\|linux\|macos` | Tags the script, shows an OS icon in the library |
 | `STRING text` | Types the text |
 | `STRINGLN text` | Types the text, then Enter |
 | `DELAY n` | Pauses n milliseconds |
@@ -175,7 +175,7 @@ Layout codes: `us fr de ch hu es it pt br se dk jp`.
 Only ASCII is typed. Accented characters in a `STRING` are skipped and
 reported in the run log rather than producing a wrong key.
 
-`WAIT_FOR_HOST` replaces the blind `DELAY` most payloads open with. Not
+`WAIT_FOR_HOST` replaces the blind `DELAY` most scripts open with. Not
 every host sends the report unprompted, so it carries on when the timeout
 expires rather than failing the run.
 
@@ -218,9 +218,9 @@ are configurable. In insertion-lock or hard-lock standby the LED stays off.
 |---|---|
 | Red, slow breath | No device has joined the access point yet |
 | Blue, steady | Standby |
-| Red, fast pulse | A payload is armed or running |
-| Green, 5 seconds | The payload finished, then back to standby |
-| Red, steady 5 seconds | The payload stopped on an error |
+| Red, fast pulse | A script is armed or running |
+| Green, 5 seconds | The script finished, then back to standby |
+| Red, steady 5 seconds | The script stopped on an error |
 
 Colours never cut over. Each change fades the old one out and the new one
 in, dipping through black rather than crossing the muddy hues a direct
@@ -233,18 +233,18 @@ that is linear in value reads as a cliff at one end.
 Arms one run at the next power-up, from the bar under the editor. It arms
 the script **as it stands in the editor**, not a reference to a library
 entry: edit it and arm what you see. The device keeps its own snapshot in
-`/armed.txt`, outside the payload directory, so renaming or deleting a
-library payload leaves the arming alone.
+`/armed.txt`, outside the script directory, so renaming or deleting a
+library script leaves the arming alone.
 
 The existence of that file is the armed state. There is no second copy of
 that fact to drift out of sync, and the badge reports its size.
 
-It is a single shot: the snapshot is deleted *before* the payload is queued,
+It is a single shot: the snapshot is deleted *before* the script is queued,
 and nothing is queued unless the delete took, so a crash or a replug during
-the run cannot turn one arming into a payload that fires on every plug. A
+the run cannot turn one arming into a script that fires on every plug. A
 factory reset clears it too.
 
-Selecting a library payload alone does not arm a run. Use **Fire after boot**.
+Selecting a library script alone does not arm a run. Use **Fire after boot**.
 That run bypasses the insertion gesture only for keyboard execution: the device
 stays locked, dark, and offline until manually unlocked. Hard lock suppresses it.
 
@@ -258,16 +258,17 @@ for the host application and a window to pull the dongle back out.
 
 | Path | Contents |
 |---|---|
-| `fleabyte.ino` | Startup, access point, main loop |
+| `mitebyte.ino` | Startup, access point, main loop |
 | `config.h` | Pins, defaults, limits |
-| `ducky.h/.cpp` | HID keyboard, layouts, interpreter, run task |
-| `storage.h/.cpp` | Payload library and settings on LittleFS |
+| `macro.h/.cpp` | HID keyboard, layouts, interpreter, run task |
+| `storage.h/.cpp` | Script library and settings on LittleFS |
 | `ui_display.h/.cpp` | ST7735 screen and APA102 LED |
 | `usb_drive.h/.cpp` | Mass storage and card browsing |
 | `usb_mode.h/.cpp` | Storage-only and active USB descriptors |
 | `tools.h/.cpp` | Built-in tool registry, lifecycle and startup preference |
-| `src/tools/` | USB hotspot plugin, DNS forwarding and packet validation |
-| `src/usb_rndis/` | Private TinyUSB application network driver |
+| `src/tools/<tool>/` | one folder per device tool (e.g. `hotspot/`: USB hotspot, DNS forwarding, packet validation) |
+| `src/diagnostics/` | shared SD diagnostic logging (used by the core, driver and tools) |
+| `src/usb_ethernet/` | Private TinyUSB application network driver |
 | `lock.h/.cpp`, `lock_validation.cpp` | Gesture states and settings validation |
 | `web_api.h/.cpp` | HTTP server, API, captive portal |
 | `web_assets.h` | Web interface, compiled into the firmware |
@@ -275,5 +276,5 @@ for the host application and a window to pull the dongle back out.
 | `tools/` | Build, flash, release, screen rendering and Windows companion |
 | `screens/` | Rendered screen images used by the README |
 
-Payloads run in their own FreeRTOS task, which keeps the web server
+Scripts run in their own FreeRTOS task, which keeps the web server
 answering during a run and makes the progress readout and *Stop* work.

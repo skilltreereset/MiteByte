@@ -1,18 +1,18 @@
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
-$script = Join-Path $root 'tools/windows/FleaByte-Sharing.ps1'
+$script = Join-Path $root 'tools/windows/MiteByte-Sharing.ps1'
 $tokens = $null; $errors = $null
 [Management.Automation.Language.Parser]::ParseFile($script, [ref]$tokens, [ref]$errors) | Out-Null
 if ($errors.Count) { throw ($errors.Message -join '; ') }
-# Syntax-check the command typed by the generated payload without executing it.
-$payloadHeader = Get-Content (Join-Path $root 'fleabyte/generated/windows_setup_payload.h') -Raw
-$bootstrapLine = ($payloadHeader -split '\r?\n' | Where-Object { $_ -like 'STRINGLN $ErrorActionPreference*' })
+# Syntax-check the command typed by the generated script without executing it.
+$scriptHeader = Get-Content (Join-Path $root 'mitebyte/generated/windows_setup_script.h') -Raw
+$bootstrapLine = ($scriptHeader -split '\r?\n' | Where-Object { $_ -like 'STRINGLN $ErrorActionPreference*' })
 if (@($bootstrapLine).Count -ne 1) { throw 'The keyboard setup bootstrap is missing.' }
 $bootstrap = $bootstrapLine.Substring('STRINGLN '.Length)
 [Management.Automation.Language.Parser]::ParseInput($bootstrap, [ref]$tokens, [ref]$errors) | Out-Null
 if ($errors.Count) { throw ($errors.Message -join '; ') }
 . $script
-. (Join-Path $root 'tools/windows/Repair-FleaByteSharing.ps1')
+. (Join-Path $root 'tools/windows/Repair-MiteByteSharing.ps1')
 
 function Assert($condition, $message) { if (-not $condition) { throw $message } }
 $encoded = [regex]::Match($bootstrap, "FromBase64String\('([^']+)'\)").Groups[1].Value
@@ -23,9 +23,9 @@ $output = [IO.MemoryStream]::new()
 $zip.CopyTo($output)
 $decoded = $output.ToArray()
 $zip.Dispose(); $memory.Dispose(); $output.Dispose()
-$expected = [IO.File]::ReadAllBytes((Join-Path $root '.cache/generated/FleaByte-Sharing-Setup.cmd'))
+$expected = [IO.File]::ReadAllBytes((Join-Path $root '.cache/generated/MiteByte-Sharing-Setup.cmd'))
 Assert ([Convert]::ToBase64String($decoded) -eq [Convert]::ToBase64String($expected)) 'Windows PowerShell must unpack the exact reviewed installer, without running it'
-$script:mockProduct = 'FleaByte USB Hotspot'
+$script:mockProduct = 'MiteByte USB Hotspot'
 $script:mockSerial = 'ABCDEF-H'
 function Get-PnpDeviceProperty {
     param($InstanceId, $KeyName, $ErrorAction)
@@ -38,17 +38,17 @@ function Get-PnpDeviceProperty {
     return $null
 }
 $candidate = [pscustomobject]@{PnPDeviceID='USB\VID_303A&PID_0002&MI_00\network-interface'}
-Assert (Test-FleaByteAdapter $candidate) 'Identify the hotspot through its composite USB parent'
+Assert (Test-MiteByteAdapter $candidate) 'Identify the hotspot through its composite USB parent'
 $script:mockSerial = 'ABCDEF-S'
-Assert (-not (Test-FleaByteAdapter $candidate)) 'Do not match storage mode'
+Assert (-not (Test-MiteByteAdapter $candidate)) 'Do not match storage mode'
 $script:mockSerial = 'ABCDEF-H'; $script:mockProduct = 'Another USB network adapter'
-Assert (-not (Test-FleaByteAdapter $candidate)) 'Do not configure an unrelated USB network adapter'
+Assert (-not (Test-MiteByteAdapter $candidate)) 'Do not configure an unrelated USB network adapter'
 $candidate.PnPDeviceID = 'PCI\network-interface'
-Assert (-not (Test-FleaByteAdapter $candidate)) 'Do not configure a PCI adapter as the dongle'
+Assert (-not (Test-MiteByteAdapter $candidate)) 'Do not configure a PCI adapter as the dongle'
 $adapters = @(
     [pscustomobject]@{InterfaceIndex=1; Name='Wi-Fi'; Status='Up'},
     [pscustomobject]@{InterfaceIndex=2; Name='Ethernet'; Status='Up'},
-    [pscustomobject]@{InterfaceIndex=3; Name='FleaByte'; Status='Up'},
+    [pscustomobject]@{InterfaceIndex=3; Name='MiteByte'; Status='Up'},
     [pscustomobject]@{InterfaceIndex=4; Name='Disconnected'; Status='Disconnected'}
 )
 $interfaces = @(
@@ -107,16 +107,16 @@ function Mock-Configuration([string]$name, [bool]$enabled, [bool]$fail = $false)
 $private = [pscustomobject]@{Enabled=$true; Type=1; Configuration=(Mock-Configuration 'dongle' $true)}
 $public = [pscustomobject]@{Enabled=$true; Type=0; Configuration=(Mock-Configuration 'source' $true)}
 $plan = [pscustomobject]@{Private=$private; Public=$public; Connections=@($private,$public)}
-Enable-FleaByteSharing $plan
+Enable-MiteByteSharing $plan
 Assert ($script:operations.Count -eq 0) 'An already shared connection must not trigger repeated configuration calls'
 $script:serviceStatus = 'Stopped'
-Enable-FleaByteSharing $plan
+Enable-MiteByteSharing $plan
 Assert ($script:serviceStarts -eq 1 -and $script:operations.Count -eq 0) 'Recover a stopped ICS service without reconfiguring shared adapters'
-Enable-FleaByteSharing $plan
+Enable-MiteByteSharing $plan
 Assert ($script:serviceStarts -eq 1) 'Leave the running ICS service alone'
 $script:serviceStatus = 'Stopped'; $script:serviceFails = $true
 $serviceFailed = $false
-try { Enable-FleaByteSharing $plan } catch { $serviceFailed = $true }
+try { Enable-MiteByteSharing $plan } catch { $serviceFailed = $true }
 Assert $serviceFailed 'Do not report sharing success when its service cannot start'
 $script:serviceFails = $false; $script:serviceStatus = 'Running'
 $plan | Add-Member NoteProperty Ready $true
@@ -130,14 +130,14 @@ Assert ($refused -and $script:operations.Count -eq 0) 'Repair must refuse a miss
 $plan.Ready = $true
 $public.Enabled = $false
 $public.Configuration.SharingEnabled = $false
-Enable-FleaByteSharing $plan
+Enable-MiteByteSharing $plan
 Assert (($script:operations -join ',') -eq 'source:enable:0') 'Switch only the public source when the dongle is already private'
 $script:operations.Clear()
 $private.Enabled = $false; $private.Configuration.SharingEnabled = $false; $private.Configuration.Fail = $true
 $old = [pscustomobject]@{Enabled=$true; Type=0; Configuration=(Mock-Configuration 'previous' $true)}
 $plan.Connections = @($old)
 $failed = $false
-try { Enable-FleaByteSharing $plan } catch { $failed = $true }
+try { Enable-MiteByteSharing $plan } catch { $failed = $true }
 Assert $failed 'Report a rejected setup'
 Assert ($script:operations.Contains('source:disable') -and $script:operations.Contains('previous:enable:0')) 'Restore the original public sharing connection on failure'
 $script:taskState = 'Running'; $script:taskStopFails = $false

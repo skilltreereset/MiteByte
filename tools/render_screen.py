@@ -165,9 +165,9 @@ def status(name, arrangement, ssid, ip, clients, state, colour,
     return s
 
 
-def wifi_payload(ssid, password):
+def wifi_script(ssid, password):
     """The join string both phone platforms understand, escaped as the
-    format requires. Matches wifiJoinPayload() in ui_display.cpp."""
+    format requires. Matches wifiJoinScript() in ui_display.cpp."""
     def esc(v):
         out = ""
         for c in v:
@@ -185,7 +185,7 @@ def access(ssid, password):
     # Dark modules on a light card, quiet zone in modules so it scales with
     # them: four while a version 3 symbol fits, two beyond. No corner
     # brackets here, the firmware draws none on this screen.
-    matrix = [list(row) for row in segno.make(wifi_payload(ssid, password),
+    matrix = [list(row) for row in segno.make(wifi_script(ssid, password),
                                               error="l").matrix]
     size = len(matrix)
     scale = 2
@@ -219,11 +219,11 @@ if __name__ == "__main__":
     out = Path(sys.argv[1] if len(sys.argv) > 1 else "screens")
     out.mkdir(parents=True, exist_ok=True)
 
-    access("Fleabyte-8218", "flea-A0058218").save(out / "screen-access.png")
+    access("MiteByte-8218", "flea-A0058218").save(out / "screen-access.png")
 
-    status("Fleabyte", "QWERTY", "Fleabyte-8218", "192.168.4.1", 1,
+    status("MiteByte", "QWERTY", "MiteByte-8218", "192.168.4.1", 1,
            "STANDBY", DIM, sd=CYAN, marker=CYAN).save(out / "screen-idle.png")
 
-    status("Fleabyte", "AZERTY", "Fleabyte-8218", "192.168.4.1", 2,
+    status("MiteByte", "AZERTY", "MiteByte-8218", "192.168.4.1", 2,
            "EXEC 7/12", AMBER, sd=AMBER, progress=7 / 12,
            marker=AMBER).save(out / "screen-running.png")
