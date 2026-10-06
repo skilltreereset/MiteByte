@@ -20,9 +20,10 @@ settings, and a per-tool source layout.
 * Keyboard automation with a macro scripting language, edited in the browser
 * Twelve keyboard layouts, switchable at runtime and mid-script
 * A script library stored on the device, editable from the web UI
-* Built-in device tools in the same library, with Start/Stop
+* Built-in device tools in the same library, each with an on/off switch
 * **Wi-Fi Hotspot:** share the host PC's internet with Wi-Fi devices over a
   private USB network interface (NAT + DNS forwarding)
+* **Light:** the screen as a white light at full brightness
 * A Wi-Fi join code on the screen, so a phone connects without typing
 * An insertion lock: the device stays dark and storage-only until unlocked with
   a button gesture

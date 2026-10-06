@@ -431,8 +431,7 @@ footer #ver{font:11.5px var(--mono)}
       <div class="card-bd">
         <p class="hint" id="tooldescription"></p>
         <div class="runbar">
-          <button class="btn" id="toolstart">Start</button>
-          <button class="btn ghost stop" id="toolstop" disabled>Stop</button>
+          <button class="switch" id="toolsw" role="switch" aria-checked="false" aria-label="Tool on"></button>
           <span class="status" id="toolstatus" role="status" aria-live="polite">Stopped</span>
         </div>
         <p class="hint" id="toolnotice"></p>
@@ -872,17 +871,22 @@ function openTool(id) {
   paintList(lastScripts, toolItems);
 }
 let lastScripts = [];
+// Browsers wrap after a hyphen, which splits "Wi-Fi" across lines. U+2011
+// looks the same but does not break.
+const noHyphenBreak = s => s.replace(/(\w)-(\w)/g, '$1‑$2');
 function paintTool() {
   const tool = toolItems.find(t => t.id === currentTool);
   if (!tool) return;
   $('#tooltitle').textContent = tool.name;
-  $('#tooldescription').textContent = tool.description;
-  $('#toolnotice').textContent = tool.notice || '';
+  $('#tooldescription').textContent = noHyphenBreak(tool.description);
+  $('#toolnotice').textContent = noHyphenBreak(tool.notice || '');
   $('#toolnotice').hidden = !tool.notice;
   $('#toolstatus').textContent = tool.message;
-  $('#toolstatus').className = 'status' + (tool.state === 'error' ? ' err' : tool.state === 'sharing' ? ' ok' : '');
-  $('#toolstart').disabled = toolPending || !!tool.running || scriptBusy || (!!activeTool && activeTool !== tool.id);
-  $('#toolstop').disabled = toolPending || !tool.running;
+  $('#toolstatus').className = 'status' + (tool.state === 'error' ? ' err' : tool.state === 'sharing' || tool.state === 'on' ? ' ok' : '');
+  // Turning off is always allowed; turning on needs the script and the other tool idle.
+  $('#toolsw').setAttribute('aria-checked', !!tool.running);
+  $('#toolsw').disabled = toolPending ||
+    (!tool.running && (scriptBusy || (!!activeTool && activeTool !== tool.id)));
   if (!toolStartupPending) $('#toolauto').checked = startupTool === tool.id;
   $('#toolauto').disabled = toolStartupPending;
   $('#toolsetup').hidden = !tool.setupUrl && !tool.setupScriptName;
@@ -911,8 +915,10 @@ async function toolAction(action) {
   } catch (e) { $('#toolactionstatus').textContent = e.message; }
   finally { toolPending = false; paintTool(); }
 }
-$('#toolstart').onclick = () => toolAction('start');
-$('#toolstop').onclick = () => toolAction('stop');
+$('#toolsw').onclick = () => {
+  const tool = toolItems.find(t => t.id === currentTool);
+  return toolAction(tool?.running ? 'stop' : 'start');
+};
 $('#toolsetupscript').onclick = async () => {
   const tool = toolItems.find(t => t.id === currentTool);
   if (!tool?.setupScriptName || toolPending || scriptBusy || activeTool) return;

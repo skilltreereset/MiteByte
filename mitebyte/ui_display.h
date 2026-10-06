@@ -42,6 +42,12 @@ void displaySetLedBright(uint8_t percent);
 
 void displayWake();
 
+// Flashlight: the whole panel white at full backlight, ignoring the screen
+// on/off and brightness preferences. Locks still win. Tapping still shows
+// the join screen, and the light returns once it times out.
+void displaySetTorch(bool on);
+bool displayGetTorch();
+
 void displaySetLed(bool on);
 
 // No device on the access point yet: the LED breathes red until one joins.

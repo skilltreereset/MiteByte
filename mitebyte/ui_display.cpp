@@ -62,6 +62,7 @@ static uint8_t s_fromR = 0, s_fromG = 0, s_fromB = 0;
 static uint32_t s_wakeUntil = 0;
 static bool s_fullRepaint = true;
 static bool s_splash = false;
+static bool s_torch = false;
 
 // The backlight PWM is attached lazily, the first time the backlight is
 // actually lit. Until then the pin is held off as plain GPIO, so boot and
@@ -114,7 +115,9 @@ static uint8_t breathe(uint32_t now, uint16_t period) {
 }
 
 static uint8_t backlightDuty() {
-  bool lit = !s_screenLocked && (s_screenOn || (millis() < s_wakeUntil));
+  if (s_screenLocked) return 255;
+  if (s_torch) return 0;
+  bool lit = s_screenOn || (millis() < s_wakeUntil);
   if (!lit) return 255;
   uint8_t pct = s_screenBright;
   if (pct < BRIGHTNESS_MIN) pct = BRIGHTNESS_MIN;
@@ -562,8 +565,27 @@ static bool s_running = false;
 static bool s_armed = false;
 static int8_t s_armedShown = -1;
 
+void displaySetTorch(bool on) {
+  if (on == s_torch) return;
+  s_torch = on;
+  s_fullRepaint = true;  // the next update paints white, or the dashboard back
+  applyBacklight();
+}
+
+bool displayGetTorch() { return s_torch; }
+
 void displayUpdate(const DisplayInfo &info) {
   applyBacklight();
+
+  if (s_torch) {
+    if (s_fullRepaint || s_splash) {
+      s_fullRepaint = false;
+      s_splash = false;
+      s_joinActive = false;
+      tft.fillScreen(rgb(0xFF, 0xFF, 0xFF));
+    }
+    return;
+  }
 
   if (s_fullRepaint || s_splash) {
     s_fullRepaint = false;
@@ -779,7 +801,7 @@ static void ledTick() {
 
 void displayTick() {
   ledTick();
-  if (s_splash) return;
+  if (s_splash || s_torch) return;
 
   uint32_t now = millis();
   if (now < s_nextFrame) return;

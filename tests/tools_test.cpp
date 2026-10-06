@@ -29,6 +29,13 @@ extern const ToolPlugin USB_HOTSPOT_TOOL = {
   "usb-hotspot", "test", "test", begin, start, stop, tick, status,
   nullptr, nullptr, nullptr, nullptr, nullptr, nullptr
 };
+static bool lightStart(String &) { return true; }
+static void noop() {}
+static ToolStatus lightStatus() { return {false, "stopped", "test", {}}; }
+extern const ToolPlugin SCREEN_LIGHT_TOOL = {
+  "screen-light", "test", "test", begin, lightStart, noop, noop, lightStatus,
+  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr
+};
 static void put32(uint8_t *p, uint32_t value) {
   for (int i = 0; i < 4; ++i) p[i] = value >> (8 * i);
 }

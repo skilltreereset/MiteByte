@@ -1,3 +1,11 @@
+// MiteByte — firmware for the LilyGO T-Dongle S3.
+//
+// A programmable USB keyboard-automation device with a self-hosted web UI,
+// for automating input and routine tasks on machines you own or are
+// authorized to use. Provided for lawful use only; the operator is
+// responsible for having permission to use it on a given system.
+//
+// See README.md, "Intended use".
 
 #include "config.h"
 #include "macro.h"

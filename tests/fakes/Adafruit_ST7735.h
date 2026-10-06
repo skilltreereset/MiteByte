@@ -14,4 +14,6 @@ public:
   template<class... T> void setRotation(T...) {}
   template<class... T> void setTextColor(T...) {}
   template<class... T> void setTextSize(T...) {}
+protected:
+  template<class... T> void setColRowStart(T...) {}
 };

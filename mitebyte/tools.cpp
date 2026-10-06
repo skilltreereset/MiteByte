@@ -1,10 +1,11 @@
 #include "tools.h"
 #include "src/tools/hotspot/usb_hotspot.h"
+#include "src/tools/light/screen_light.h"
 #include "storage.h"
 
 // Register future tools here. HTTP, the library and startup behavior use this
 // same table and do not need tool-specific branches.
-static const ToolPlugin *const s_plugins[] = { &USB_HOTSPOT_TOOL };
+static const ToolPlugin *const s_plugins[] = { &USB_HOTSPOT_TOOL, &SCREEN_LIGHT_TOOL };
 static const ToolPlugin *s_active = nullptr;
 static String s_startup;
 static String s_failedId, s_failure;

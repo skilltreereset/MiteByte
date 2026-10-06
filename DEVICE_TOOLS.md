@@ -80,6 +80,13 @@ license and local adaptations are in `mitebyte/src/usb_ethernet/UPSTREAM.md`.
 The build uses Arduino ESP32 3.3.12 (TinyUSB 0.21 driver interface); older cores
 are not validated.
 
+## Light
+
+Fills the screen white at full backlight, overriding the screen on/off and
+brightness settings. It changes no USB or network state. Screen lock and hard
+lock still turn it off, and a button tap still shows the join screen for its
+usual few seconds before the light returns. Stopping repaints the dashboard.
+
 ## API
 
 `GET /api/state` includes `tools`, `activeTool` and `startupTool`, preserving the
