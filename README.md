@@ -7,11 +7,11 @@ storage. Everything runs on the device — no cloud.
 
 It adds, on top of upstream: a built-in device-tool framework, a USB-to-Wi-Fi
 internet-sharing tool, an insertion lock with gesture unlock, LED/display
-settings, and a per-tool source layout with neutral module naming.
+settings, and a per-tool source layout with consistent module naming.
 
-> Contributions back to upstream are welcome if the original author is
-> interested. The changes here are extensive, so a single pull request would be
-> large; the full history lives in this fork.
+> This fork was created to keep development moving without waiting on a pull
+> request. If the upstream author is interested, I'm glad to merge it back into
+> the original project.
 
 ![MiteByte status screen](screens/screen-idle.png)
 
