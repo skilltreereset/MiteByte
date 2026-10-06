@@ -1,17 +1,17 @@
 # MiteByte
 
 **MiteByte is a fork of [FleaByte](https://github.com/b3rt1ng/FleaByte).** It is
-firmware for the LilyGO T-Dongle S3: a programmable USB HID keyboard with a
+firmware for the LilyGO T-Dongle S3: a programmable USB HID with a
 self-hosted web UI for keyboard automation, built-in device tools, and USB mass
 storage. Everything runs on the device — no cloud.
 
 It adds, on top of upstream: a built-in device-tool framework, a USB-to-Wi-Fi
 internet-sharing tool, an insertion lock with gesture unlock, LED/display
-settings, and a per-tool source layout with consistent module naming.
+settings, and a per-tool source layout.
 
-> This fork was created to keep development moving without waiting on a pull
-> request. If the upstream author is interested, I'm glad to merge it back into
-> the original project.
+> Contributions back to upstream are welcome if the original author is
+> interested. The changes here are extensive, so a single pull request would be
+> large; the full history lives in this fork.
 
 ![MiteByte status screen](screens/screen-idle.png)
 
@@ -36,9 +36,7 @@ settings, and a per-tool source layout with consistent module naming.
 
 ## Scope of use
 
-Machines you own, or for which you hold authorisation. This is a USB HID
-keyboard: it sends keystrokes to the machine it is connected to, so use it only
-where you are permitted to.
+Machines you own, or for which you hold authorisation Intended as tool for automatization.
 
 ## Hardware
 

@@ -67,6 +67,8 @@ script = (
     "STRINGLN powershell.exe -NoLogo -NoProfile\n"
     "DELAY 5000\n"
     "STRINGLN " + bootstrap + "\n"
+    "DELAY 500\n"
+    "ALT y\n"
 )
 if len(script.encode("ascii")) > 16384 or len(bootstrap) >= 8000:
     raise ValueError("Windows setup exceeds keyboard script/console limits")

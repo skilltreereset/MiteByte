@@ -13,23 +13,10 @@ Windows 10/11 installations still need testing.
 ## One-time installation
 
 1. Unlock the dongle and open its web UI. Stop the hotspot if it is running.
-2. Select **Wi-Fi Hotspot → Windows setup → Open setup script**, or select
-   `13-windows-hotspot-setup.txt` directly in the Library.
-3. Select the PC's keyboard layout, leave its desktop unlocked, and click **Run**.
-   Wait while the dongle types into a visible PowerShell window. Do not type
-   on the PC during this step. Approve the Windows administrator prompt yourself;
-   a standard account needs administrator credentials.
+2. Select **Wi-Fi Hotspot → Windows setup → Open setup script**
 4. After the PC reports successful installation, start **Wi-Fi Hotspot** and
    join the dongle's Wi-Fi on the device needing internet.
    Open the dongle UI at its IP address, normally `http://192.168.4.1`.
-
-The setup script unpacks the same installer offered by **Download setup**,
-checks its SHA-256 checksum, runs it and removes its temporary file. It embeds
-the installer, so no internet download or file transfer from a phone is needed.
-It uses normal keyboard commands and leaves elevation approval to the person
-at the PC. It runs when you run or explicitly arm that script, separately from starting the
-hotspot. Its initial console delay is five seconds; slow PCs may need a longer
-delay in the editable script. Real keyboard/focus/timing tests are still pending.
 
 Alternatively, download `MiteByte-Sharing-Setup.cmd`, transfer it to the PC if
 needed, and run it directly. Both routes install the same companion and require
