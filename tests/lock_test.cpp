@@ -85,6 +85,27 @@ int main() {
   online();
   assert(backlight == 0);
 
+  // Between the tap and the screen-lock hold sits the menu hold.
+  assert(press(MENU_HOLD_MS - 100) == LOCK_EVT_TAP_ONLINE);
+  assert(press(MENU_HOLD_MS) == LOCK_EVT_HOLD_ONLINE);
+  assert(press(SCREEN_LOCK_ENTER_HOLD_MS - 100) == LOCK_EVT_HOLD_ONLINE);
+  assert(!lockScreenIsLocked());
+
+  // The hold is readable while it happens (the menu fills its frame from it),
+  // and reads 0 with the button up.
+  assert(lockHeldMs() == 0);
+  button = LOW;
+  lockTick();
+  now += 400;
+  lockTick();
+  assert(lockHeldMs() == 400);
+  now += 700;
+  assert(lockHeldMs() == 1100);
+  button = HIGH;
+  lockTick();
+  assert(lockHeldMs() == 0);
+  now += 50;
+
   lockRequestScreenLock();
   assert(lockScreenIsLocked() && backlight == 255);
   // The exact setters used by both preview and Apply must respect the lock.

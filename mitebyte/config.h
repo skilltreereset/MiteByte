@@ -95,6 +95,13 @@
 // same unlock sequence as LOCKED, not a separate one.
 #define SCREEN_LOCK_ENTER_HOLD_MS 2000
 
+// A press released between this and the screen-lock hold, while ONLINE, is a
+// hold: it opens the script menu, and inside the menu runs the selection.
+#define MENU_HOLD_MS 400
+
+// The menu closes itself after this long without a press.
+#define MENU_IDLE_MS 4000
+
 // Snapshot of a pending hard-lock, outside settings.txt so a factory reset
 // (which deletes settings.txt) also clears it outright. Its presence/count is
 // the state: no second copy of that fact to drift out of sync. Armed with a
