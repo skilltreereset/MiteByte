@@ -19,6 +19,16 @@ with tempfile.TemporaryDirectory(prefix="mitebyte-tests-") as folder:
         str(ROOT / "mitebyte/lock.cpp"),
         str(ROOT / "mitebyte/lock_validation.cpp"),
         str(ROOT / "mitebyte/ui_display.cpp"),
+        str(ROOT / "mitebyte/menu_view.cpp"),
+        "-o", str(binary),
+    ], check=True)
+    subprocess.run([str(binary)], check=True)
+    binary = pathlib.Path(folder) / "menu_view_test.exe"
+    subprocess.run([
+        compiler, "-std=c++17", "-Wall", "-Wextra",
+        "-I", str(ROOT / "tests/fakes"), "-I", str(ROOT / "mitebyte"),
+        str(ROOT / "tests/menu_view_test.cpp"),
+        str(ROOT / "mitebyte/menu_view.cpp"),
         "-o", str(binary),
     ], check=True)
     subprocess.run([str(binary)], check=True)
