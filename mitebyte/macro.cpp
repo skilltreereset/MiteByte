@@ -63,6 +63,7 @@ static int g_total = 0;
 static int g_countdown = 0;
 static uint16_t g_pendingDelay = 0;
 static String g_message = "Ready";
+static String g_origin;
 static String g_log;
 static uint32_t g_logSeq = 0;
 static uint32_t g_finishSeq = 0;
@@ -553,6 +554,9 @@ bool macroRun(const String &script, const String &origin, uint16_t delaySeconds)
 
   g_abort = false;
   g_pendingDelay = delaySeconds;
+  lock();
+  g_origin = origin;
+  unlock();
   setState(delaySeconds ? MACRO_ARMED : MACRO_RUNNING, "Starting");
   logLine("== " + origin + " ==");
 
@@ -580,6 +584,13 @@ MacroStatus macroGetStatus() {
   s.finishFailed = g_finishFailed;
   unlock();
   return s;
+}
+
+String macroRunOrigin() {
+  lock();
+  String origin = g_origin;
+  unlock();
+  return origin;
 }
 
 bool macroIsRunning() {
