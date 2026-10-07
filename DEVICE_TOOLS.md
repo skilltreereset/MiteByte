@@ -13,7 +13,9 @@ supported.
    (e.g. SD diagnostic logging) lives outside `src/tools/`, under `src/diagnostics/`.
 2. Export a `const ToolPlugin` from a small header. The interface is in
    `mitebyte/tools.h`: ID, title, description, begin/start/stop/tick/status,
-   notice, optional setup download metadata and an optional library setup script name.
+   notice, optional setup download metadata, an optional library setup script name,
+   and `takesScreen` for a tool that takes over the whole display (the device menu
+   closes when it starts).
 3. Include that header in `mitebyte/tools.cpp` and add its address to `s_plugins`.
 4. Return compact status text and label/value details. The HTTP API and web UI
    consume that metadata without branches for individual tools.

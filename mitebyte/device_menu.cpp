@@ -62,7 +62,8 @@ static void runScript(const String &name) {
 }
 
 // A tool toggles: the menu stays open showing its new state, so the same
-// hold switches it back.
+// hold switches it back. A tool that takes over the display closes the menu
+// instead, so it is on screen at once.
 static void toggleTool(const String &id) {
   if (toolsActiveId() == id) {
     toolsStop();
@@ -72,6 +73,8 @@ static void toggleTool(const String &id) {
   } else {
     String error;
     if (!toolsStart(id, error)) { paint("FAILED"); return; }
+    const ToolPlugin *tool = toolsFind(id);
+    if (tool && tool->takesScreen) { menuClose(); return; }
   }
   build();
   paint();
@@ -81,8 +84,7 @@ static void toggleTool(const String &id) {
 // most likely wants (to stop the tool), so it starts there; with more than one
 // running, the first by name. Otherwise it starts on the first real entry
 // rather than BACK.
-static size_t startIndex() {
-  const String tool = toolsActiveId();
+static size_t startIndex(const String &tool) {
   const MacroStatus script = macroGetStatus();
   const bool scriptBusy = script.state == MACRO_RUNNING || script.state == MACRO_ARMED;
   const String origin = scriptBusy ? macroRunOrigin() : String();
@@ -108,9 +110,16 @@ static size_t startIndex() {
 bool menuIsOpen() { return s_open; }
 
 void menuOpen() {
+  // A tool that takes over the display cannot share it with the menu, so
+  // opening the menu switches it off. The menu still opens on it, and one more
+  // hold turns it back on.
+  const String tool = toolsActiveId();
+  const ToolPlugin *active = toolsFind(tool);
+  if (active && active->takesScreen) toolsStop();
+
   build();
   s_open = true;
-  s_selected = startIndex();
+  s_selected = startIndex(tool);
   s_idleSince = millis();
   paint();
 }

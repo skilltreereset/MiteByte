@@ -14,5 +14,6 @@ static ToolStatus status() {
 const ToolPlugin SCREEN_LIGHT_TOOL = {
   "screen-light", "Light", "White screen at full brightness.",
   begin, start, stop, tick, status,
-  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr
+  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+  nullptr, true
 };

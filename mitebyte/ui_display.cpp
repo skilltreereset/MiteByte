@@ -586,11 +586,20 @@ static bool s_running = false;
 static bool s_armed = false;
 static int8_t s_armedShown = -1;
 
+static void paintTorch() {
+  s_fullRepaint = false;
+  s_splash = false;
+  s_joinActive = false;
+  releaseMenu();
+  tft.fillScreen(rgb(0xFF, 0xFF, 0xFF));
+}
+
 void displaySetTorch(bool on) {
   if (on == s_torch) return;
   s_torch = on;
-  s_fullRepaint = true;  // the next update paints white, or the dashboard back
+  s_fullRepaint = true;  // the next update paints the dashboard back
   applyBacklight();
+  if (on) paintTorch();  // white at once, not at the next dashboard refresh
 }
 
 bool displayGetTorch() { return s_torch; }
@@ -599,13 +608,7 @@ void displayUpdate(const DisplayInfo &info) {
   applyBacklight();
 
   if (s_torch) {
-    if (s_fullRepaint || s_splash) {
-      s_fullRepaint = false;
-      s_splash = false;
-      s_joinActive = false;
-      releaseMenu();
-      tft.fillScreen(rgb(0xFF, 0xFF, 0xFF));
-    }
+    if (s_fullRepaint || s_splash) paintTorch();
     return;
   }
 
