@@ -29,11 +29,16 @@ settings, and a per-tool source layout.
   a button gesture
 * microSD exposed to the host as a removable drive, with a web file browser
 * Status screen and an LED that reports what the device is doing
+* A button menu on the screen to run scripts and switch tools without a browser
 
 | | |
 |---|---|
 | ![Access](screens/screen-access.png) | ![Running](screens/screen-running.png) |
 | Scan to join, or read the credentials | Status while a script runs |
+
+![Menu](screens/screen-menu.png)
+
+The button menu: tap to move, hold to run a script or switch a tool.
 
 ## Scope of use
 
