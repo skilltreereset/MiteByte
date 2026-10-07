@@ -75,7 +75,20 @@ REM PowerShell takes longer to appear than a text editor.
 DELAY 2000
 STRINGLN echo ok
 )FLEAPL";
-static const char FLEA_SCRIPT_5[] PROGMEM = R"FLEAPL(META linux
+static const char FLEA_SCRIPT_5[] PROGMEM = R"FLEAPL(REM Checks that the selected layout matches the machine's keyboard.
+REM Open a text editor BEFORE running this script.
+REM These are the characters that move between AZERTY and QWERTY.
+DELAY 500
+STRINGLN --- MiteByte layout test ---
+STRINGLN azertyuiop qwertyuiop
+STRINGLN AZERTYUIOP QWERTYUIOP
+STRINGLN 0123456789
+STRINGLN @ # $ % & * ( ) - _ = +
+STRINGLN / \ | [ ] { } < > ^ ~
+STRINGLN ! ? : ; , . ' "
+STRINGLN If this line reads correctly, the layout is right.
+)FLEAPL";
+static const char FLEA_SCRIPT_6[] PROGMEM = R"FLEAPL(META linux
 REM Linux/GNOME: opens a terminal and prints a message.
 REM CTRL ALT T is the GNOME shortcut; adjust for your desktop.
 DELAY 300
@@ -83,7 +96,7 @@ CTRL ALT t
 DELAY 1500
 STRINGLN echo "MiteByte - HID test $(date)"
 )FLEAPL";
-static const char FLEA_SCRIPT_6[] PROGMEM = R"FLEAPL(META macos
+static const char FLEA_SCRIPT_7[] PROGMEM = R"FLEAPL(META macos
 REM macOS: opens TextEdit through Spotlight and types a line.
 DELAY 300
 GUI SPACE
@@ -94,7 +107,7 @@ ENTER
 DELAY 2000
 STRINGLN Script executed from MiteByte.
 )FLEAPL";
-static const char FLEA_SCRIPT_7[] PROGMEM = R"FLEAPL(REM Shows the timing commands. Open a text editor first.
+static const char FLEA_SCRIPT_8[] PROGMEM = R"FLEAPL(REM Shows the timing commands. Open a text editor first.
 DELAY 500
 STRINGLN -- default speed --
 STRINGLN The quick brown fox jumps over the lazy dog.
@@ -110,7 +123,7 @@ REPEAT 30
 ENTER
 STRINGLN done
 )FLEAPL";
-static const char FLEA_SCRIPT_8[] PROGMEM = R"FLEAPL(REM Targets whose input mode is not Latin: Russian, Chinese, Korean,
+static const char FLEA_SCRIPT_9[] PROGMEM = R"FLEAPL(REM Targets whose input mode is not Latin: Russian, Chinese, Korean,
 REM Japanese kana. A layout table cannot help there, because with a
 REM non-Latin input mode active no key produces an ASCII letter at all.
 REM The fix is to switch the host back to Latin input first.
@@ -130,8 +143,9 @@ static const SeededScript SEEDED_SCRIPTS[] = {
   {"10-windows-notepad.txt", FLEA_SCRIPT_2},
   {"11-windows-open-url.txt", FLEA_SCRIPT_3},
   {"12-windows-powershell.txt", FLEA_SCRIPT_4},
-  {"20-linux-terminal.txt", FLEA_SCRIPT_5},
-  {"30-macos-textedit.txt", FLEA_SCRIPT_6},
-  {"40-timing-demo.txt", FLEA_SCRIPT_7},
-  {"50-switch-input-language.txt", FLEA_SCRIPT_8},
+  {"14-windows-hotspot-uninstall.txt", FLEA_SCRIPT_5},
+  {"20-linux-terminal.txt", FLEA_SCRIPT_6},
+  {"30-macos-textedit.txt", FLEA_SCRIPT_7},
+  {"40-timing-demo.txt", FLEA_SCRIPT_8},
+  {"50-switch-input-language.txt", FLEA_SCRIPT_9},
 };

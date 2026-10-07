@@ -124,6 +124,8 @@ void lockBegin(const String &unlockSequence, const String &hardlockSequence,
   displaySetScreenLocked(s_mode == MODE_LOCKED);
 }
 
+uint32_t lockHeldMs() { return s_lastBtn == LOW ? millis() - s_downAt : 0; }
+
 bool lockIsLocked() { return s_mode == MODE_LOCKED; }
 bool lockScreenIsLocked() { return s_mode == MODE_SCREEN_LOCK; }
 
@@ -217,7 +219,8 @@ LockEvent lockTick() {
           break;
 
         case MODE_ONLINE:
-          ev = LOCK_EVT_TAP_ONLINE;
+          // Anything held to SCREEN_LOCK_ENTER_HOLD_MS was consumed above.
+          ev = (held >= MENU_HOLD_MS) ? LOCK_EVT_HOLD_ONLINE : LOCK_EVT_TAP_ONLINE;
           break;
       }
     }

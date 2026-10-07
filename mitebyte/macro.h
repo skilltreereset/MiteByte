@@ -33,6 +33,10 @@ void macroAbort();
 MacroStatus macroGetStatus();
 bool macroIsRunning();
 
+// Where the current (or last) run came from: a library script's file name,
+// "editor" for text run from the web editor, or "boot".
+String macroRunOrigin();
+
 // True once the host has sent a keyboard LED report, which it does on
 // enumeration and whenever a lock key changes. It is the only signal the
 // device gets that the other end has finished enumerating and is

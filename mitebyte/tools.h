@@ -29,6 +29,8 @@ struct ToolPlugin {
   const char *setupHint;
   const char *setupManual;
   const char *setupScriptName = nullptr;
+  // The tool takes over the whole display, so the menu closes when it starts.
+  bool takesScreen = false;
 };
 
 void toolsBegin();

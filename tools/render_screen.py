@@ -17,11 +17,14 @@ W, H = 160, 80
 SCALE = 8
 
 FONT_SRC = Path.home() / "Arduino/libraries/Adafruit_GFX_Library/glcdfont.c"
+if not FONT_SRC.exists():  # a PlatformIO checkout has the same file in its libdeps
+    FONT_SRC = (Path(__file__).resolve().parents[1]
+                / ".pio/libdeps/mitebyte/Adafruit GFX Library/glcdfont.c")
 
 BG = (0x00, 0x00, 0x00)
 TEXT = (0xE6, 0xFB, 0xF6)
 DIM = (0x3E, 0x6B, 0x63)
-CYAN = (0x00, 0xE5, 0xD0)
+CYAN = (0x7A, 0xD4, 0xFB)
 MAGENTA = (0xFF, 0x2D, 0x8A)
 LIME = (0xB6, 0xFF, 0x3C)
 RED = (0xFF, 0x3B, 0x30)

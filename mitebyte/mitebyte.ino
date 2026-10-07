@@ -1,5 +1,14 @@
+// MiteByte — firmware for the LilyGO T-Dongle S3.
+//
+// A programmable USB keyboard-automation device with a self-hosted web UI,
+// for automating input and routine tasks on machines you own or are
+// authorized to use. Provided for lawful use only; the operator is
+// responsible for having permission to use it on a given system.
+//
+// See README.md, "Intended use".
 
 #include "config.h"
+#include "device_menu.h"
 #include "macro.h"
 #include "lock.h"
 #include "storage.h"
@@ -176,9 +185,27 @@ void loop() {
       goOnline();
       break;
     case LOCK_EVT_HARD_LOCKED:
+      menuClose();
       goStandby();
       break;
+    case LOCK_EVT_SCREEN_LOCK_ENTERED:
+      menuClose();
+      break;
+    case LOCK_EVT_HOLD_ONLINE:
+      if (menuIsOpen()) {
+        menuPress(true);
+      } else {
+        // Someone holding the dongle has no use for a latched join screen.
+        g_joinLatched = false;
+        g_joinUntil = 0;
+        menuOpen();
+      }
+      break;
     case LOCK_EVT_TAP_ONLINE: {
+      if (menuIsOpen()) {
+        menuPress(false);
+        break;
+      }
       // A short press while ONLINE pulls up the QR/credentials screen for a
       // few seconds. displayShowJoin() only repaints if it is not already the
       // screen on show, so repeated taps no longer re-clear and flicker it;
@@ -202,6 +229,7 @@ void loop() {
   webLoop();
   MacroStatus scriptStatus = macroGetStatus();
   toolsTick(scriptStatus.state == MACRO_RUNNING || scriptStatus.state == MACRO_ARMED);
+  menuTick();
   displayTick();
 
   uint32_t now = millis();
@@ -234,7 +262,7 @@ void loop() {
     // wiped the join screen the operator had asked to keep.
     if (info.clients > 0) g_joinLatched = false;
 
-    if (!g_joinLatched && now >= g_joinUntil) displayUpdate(info);
+    if (!menuIsOpen() && !g_joinLatched && now >= g_joinUntil) displayUpdate(info);
   }
 
   delay(2);

@@ -22,8 +22,12 @@ arduino-cli does not invoke a shell.
 
 **The backlight is active low.** A duty cycle of 0 is full brightness.
 
-**The panel clips its outermost row and column.** Anything drawn flush to the
-edge loses pixels, which is why the screen frame sits 3 px in.
+**`INITR_MINI160x80` has the wrong RAM offset for this panel.** Adafruit
+assumes column 24, row 0; this panel needs 26, 1. With the default, strips
+along the edges are never written and show power-up noise, and drawing
+appears clipped on the opposite edges. `ui_display.cpp` overrides the
+offsets after `initR()`. `INITR_MINI160x80_PLUGIN` has the right offsets but
+swaps the colour order and inversion, so it is not a drop-in.
 
 **Nothing may draw outside the rectangle it clears.** The display has no
 framebuffer and repaints only the fields that changed, so the glitch effect

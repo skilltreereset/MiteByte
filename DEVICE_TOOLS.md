@@ -13,7 +13,9 @@ supported.
    (e.g. SD diagnostic logging) lives outside `src/tools/`, under `src/diagnostics/`.
 2. Export a `const ToolPlugin` from a small header. The interface is in
    `mitebyte/tools.h`: ID, title, description, begin/start/stop/tick/status,
-   notice, optional setup download metadata and an optional library setup script name.
+   notice, optional setup download metadata, an optional library setup script name,
+   and `takesScreen` for a tool that takes over the whole display (the device menu
+   closes when it starts).
 3. Include that header in `mitebyte/tools.cpp` and add its address to `s_plugins`.
 4. Return compact status text and label/value details. The HTTP API and web UI
    consume that metadata without branches for individual tools.
@@ -79,6 +81,13 @@ using distinct symbols. No installed SDK files are patched. Its upstream source,
 license and local adaptations are in `mitebyte/src/usb_ethernet/UPSTREAM.md`.
 The build uses Arduino ESP32 3.3.12 (TinyUSB 0.21 driver interface); older cores
 are not validated.
+
+## Light
+
+Fills the screen white at full backlight, overriding the screen on/off and
+brightness settings. It changes no USB or network state. Screen lock and hard
+lock still turn it off, and a button tap still shows the join screen for its
+usual few seconds before the light returns. Stopping repaints the dashboard.
 
 ## API
 

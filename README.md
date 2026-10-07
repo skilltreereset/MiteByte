@@ -20,19 +20,25 @@ settings, and a per-tool source layout.
 * Keyboard automation with a macro scripting language, edited in the browser
 * Twelve keyboard layouts, switchable at runtime and mid-script
 * A script library stored on the device, editable from the web UI
-* Built-in device tools in the same library, with Start/Stop
+* Built-in device tools in the same library, each with an on/off switch
 * **Wi-Fi Hotspot:** share the host PC's internet with Wi-Fi devices over a
   private USB network interface (NAT + DNS forwarding)
+* **Light:** the screen as a white light at full brightness
 * A Wi-Fi join code on the screen, so a phone connects without typing
 * An insertion lock: the device stays dark and storage-only until unlocked with
   a button gesture
 * microSD exposed to the host as a removable drive, with a web file browser
 * Status screen and an LED that reports what the device is doing
+* A button menu on the screen to run scripts and switch tools without a browser
 
 | | |
 |---|---|
 | ![Access](screens/screen-access.png) | ![Running](screens/screen-running.png) |
 | Scan to join, or read the credentials | Status while a script runs |
+
+![Menu](screens/screen-menu.png)
+
+The button menu: tap to move, hold to run a script or switch a tool.
 
 ## Scope of use
 

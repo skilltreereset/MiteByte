@@ -1,5 +1,6 @@
 #include "ui_display.h"
 #include "config.h"
+#include "display_color.h"
 
 #include <Adafruit_GFX.h>
 #include <Adafruit_ST7735.h>
@@ -9,25 +10,27 @@
 // header wins over any library also called qrcode.h.
 #include <qrcode.h>
 
-static constexpr uint16_t rgb(uint8_t r, uint8_t g, uint8_t b) {
-#if TFT_SWAP_RED_BLUE
-  return ((uint16_t)(b & 0xF8) << 8) | ((uint16_t)(g & 0xFC) << 3) | (r >> 3);
-#else
-  return ((uint16_t)(r & 0xF8) << 8) | ((uint16_t)(g & 0xFC) << 3) | (b >> 3);
-#endif
-}
-
 static constexpr uint16_t C_BG      = rgb(0x00, 0x00, 0x00);
 static constexpr uint16_t C_TEXT    = rgb(0xE6, 0xFB, 0xF6);
 static constexpr uint16_t C_DIM     = rgb(0x3E, 0x6B, 0x63);
-static constexpr uint16_t C_CYAN    = rgb(0x00, 0xE5, 0xD0);
 static constexpr uint16_t C_MAGENTA = rgb(0xFF, 0x2D, 0x8A);
 static constexpr uint16_t C_LIME    = rgb(0xB6, 0xFF, 0x3C);
 static constexpr uint16_t C_RED     = rgb(0xFF, 0x3B, 0x30);
 static constexpr uint16_t C_AMBER   = rgb(0xFF, 0xA5, 0x00);
 
+// INITR_MINI160x80 assumes a (24, 0) RAM offset. This panel's visible area
+// starts further in, and the unwritten strips show as noise along the edges.
+class PanelST7735 : public Adafruit_ST7735 {
+ public:
+  using Adafruit_ST7735::Adafruit_ST7735;
+  void setOffsets(int8_t col, int8_t row) { setColRowStart(col, row); }
+};
+
+static constexpr int8_t TFT_COL_OFFSET = 26;
+static constexpr int8_t TFT_ROW_OFFSET = 1;
+
 static SPIClass tftSPI(FSPI);
-static Adafruit_ST7735 tft(&tftSPI, TFT_CS, TFT_DC, TFT_RST);
+static PanelST7735 tft(&tftSPI, TFT_CS, TFT_DC, TFT_RST);
 
 static uint8_t s_rotation = TFT_ROTATION;
 static bool s_screenOn = true;
@@ -51,6 +54,16 @@ static uint8_t s_fromR = 0, s_fromG = 0, s_fromB = 0;
 static uint32_t s_wakeUntil = 0;
 static bool s_fullRepaint = true;
 static bool s_splash = false;
+static bool s_torch = false;
+
+// True while the menu owns the screen. Anything else that paints the full
+// screen calls releaseMenu(), which also stops the animation.
+static bool s_menuActive = false;
+
+static void releaseMenu() {
+  s_menuActive = false;
+  menuViewHide();
+}
 
 // The backlight PWM is attached lazily, the first time the backlight is
 // actually lit. Until then the pin is held off as plain GPIO, so boot and
@@ -103,7 +116,9 @@ static uint8_t breathe(uint32_t now, uint16_t period) {
 }
 
 static uint8_t backlightDuty() {
-  bool lit = !s_screenLocked && (s_screenOn || (millis() < s_wakeUntil));
+  if (s_screenLocked) return 255;
+  if (s_torch) return 0;
+  bool lit = s_screenOn || (millis() < s_wakeUntil);
   if (!lit) return 255;
   uint8_t pct = s_screenBright;
   if (pct < BRIGHTNESS_MIN) pct = BRIGHTNESS_MIN;
@@ -196,9 +211,9 @@ static void paintField(FieldId id, bool glitched) {
   if (glitched) {
 
     putText(f.x - GHOST_DX, f.y, shown, C_MAGENTA, f.size);
-    putText(f.x + GHOST_DX, f.y, shown, C_CYAN, f.size);
+    putText(f.x + GHOST_DX, f.y, shown, C_EDGE, f.size);
   }
-  putText(f.x, f.y, shown, f.decode ? C_CYAN : f.color, f.size);
+  putText(f.x, f.y, shown, f.decode ? C_EDGE : f.color, f.size);
 }
 
 static void setField(FieldId id, const String &text, uint16_t color) {
@@ -217,17 +232,16 @@ static void placeFields() {
   if (isLandscape()) {
     s_f[F_SSID]    = {40, 21, 106, 8, 1, C_TEXT, s_f[F_SSID].text, 0};
     s_f[F_IP]      = {40, 32, 106, 8, 1, C_DIM, s_f[F_IP].text, 0};
-    s_f[F_CLIENTS] = {56, 50, 26, 16, 2, C_CYAN, s_f[F_CLIENTS].text, 0};
+    s_f[F_CLIENTS] = {56, 50, 26, 16, 2, C_EDGE, s_f[F_CLIENTS].text, 0};
     s_f[F_STATE]   = {92, 54, 54, 8, 1, C_DIM, s_f[F_STATE].text, 0};
   } else {
     s_f[F_SSID]    = {P_LEFT, 42, 68, 8, 1, C_TEXT, s_f[F_SSID].text, 0};
     s_f[F_IP]      = {P_LEFT, 66, 68, 8, 1, C_DIM, s_f[F_IP].text, 0};
-    s_f[F_CLIENTS] = {P_LEFT, 98, 40, 24, 3, C_CYAN, s_f[F_CLIENTS].text, 0};
+    s_f[F_CLIENTS] = {P_LEFT, 98, 40, 24, 3, C_EDGE, s_f[F_CLIENTS].text, 0};
     s_f[F_STATE]   = {18, 130, 56, 8, 1, C_DIM, s_f[F_STATE].text, 0};
   }
 }
 
-// The panel clips its outermost row and column, so the frame sits inset.
 static constexpr int16_t FRAME_INSET = 3;
 static constexpr int16_t FRAME_ARM = 9;
 static constexpr int16_t FRAME_THICK = 2;
@@ -269,7 +283,7 @@ static void paintSdState(int8_t state) {
   const int16_t x = isLandscape() ? 96 : 60;
   const int16_t y = isLandscape() ? 2 : 17;
   tft.fillRect(x, y, 10, 13, C_BG);
-  if (state == 1) drawSdIcon(x, y, C_CYAN);
+  if (state == 1) drawSdIcon(x, y, C_EDGE);
   else if (state == 2) drawSdIcon(x, y, C_AMBER);
 }
 
@@ -280,14 +294,15 @@ static void drawDashed(int16_t y, int16_t from, int16_t to, uint16_t color) {
 }
 
 static void drawChrome(const String &arrangement, const String &name) {
+  releaseMenu();
   tft.fillScreen(C_BG);
-  drawCorners(C_CYAN);
+  drawCorners(C_EDGE);
 
   String badge = arrangement;
 
   if (isLandscape()) {
 
-    putText(L_LEFT, 4, "//" + truncate(name, 13), C_CYAN, 1);
+    putText(L_LEFT, 4, "//" + truncate(name, 13), C_EDGE, 1);
     putText(L_RIGHT - badge.length() * 6, 4, badge, C_MAGENTA, 1);
     tft.drawFastHLine(L_LEFT, 15, L_RIGHT - L_LEFT, C_DIM);
     putText(L_LEFT, 21, "NET", C_DIM, 1);
@@ -295,7 +310,7 @@ static void drawChrome(const String &arrangement, const String &name) {
     drawDashed(44, L_LEFT, L_RIGHT, C_DIM);
     putText(L_LEFT, 54, "NODES", C_DIM, 1);
   } else {
-    putText(P_LEFT + 8, 4, "//" + truncate(name, 7), C_CYAN, 1);
+    putText(P_LEFT + 8, 4, "//" + truncate(name, 7), C_EDGE, 1);
     tft.drawFastHLine(P_LEFT, 15, P_RIGHT - P_LEFT, C_DIM);
     putText(P_LEFT, 22, badge, C_MAGENTA, 1);
     putText(P_LEFT, 32, "NET", C_DIM, 1);
@@ -322,6 +337,7 @@ void displayBegin() {
 
   tftSPI.begin(TFT_SCLK, -1, TFT_MOSI, TFT_CS);
   tft.initR(INITR_MINI160x80);
+  tft.setOffsets(TFT_COL_OFFSET, TFT_ROW_OFFSET);  // before setRotation, which reads them
   tft.setRotation(s_rotation);
   tft.invertDisplay(true);
   tft.fillScreen(C_BG);
@@ -337,6 +353,7 @@ void displaySetRotation(uint8_t rotation) {
   if (rotation > 3 || rotation == s_rotation) return;
   s_rotation = rotation;
   tft.setRotation(s_rotation);
+  releaseMenu();
   tft.fillScreen(C_BG);
   s_fullRepaint = true;
 }
@@ -487,6 +504,7 @@ void displayShowJoin(const String &ssid, const String &password) {
 
   s_fullRepaint = true;
   s_splash = true;
+  releaseMenu();
   applyBacklight();
   tft.fillScreen(C_BG);
 
@@ -495,7 +513,7 @@ void displayShowJoin(const String &ssid, const String &password) {
   if (!coded) {
     // Credentials too long for anything that fits in 80 px. Text only.
     drawCorners(C_MAGENTA);
-    putText(14, 4, "//ACCESS", C_CYAN, 1);
+    putText(14, 4, "//ACCESS", C_EDGE, 1);
     tft.drawFastHLine(8, 15, screenW() - 16, C_DIM);
     putText(8, 22, "SSID", C_DIM, 1);
     putText(8, 32, truncate(ssid, charsPerLine()), C_TEXT, 1);
@@ -506,7 +524,7 @@ void displayShowJoin(const String &ssid, const String &password) {
 
   if (isLandscape()) {
     // The QR ends at x=76, so the column starts at 79 and holds 13 per line.
-    putText(79, 8, "SCAN", C_CYAN, 1);
+    putText(79, 8, "SCAN", C_EDGE, 1);
     putText(79, 20, "SSID", C_DIM, 1);
     putWrapped(79, 30, ssid, C_TEXT, 13);
     putText(79, 52, "KEY", C_DIM, 1);
@@ -519,6 +537,22 @@ void displayShowJoin(const String &ssid, const String &password) {
   }
 }
 
+// ---- Menu ----------------------------------------------------------------
+
+void displayShowMenu(const std::vector<MenuItem> &items, size_t selected,
+                     const char *alert) {
+  applyBacklight();
+  s_joinActive = false;
+  s_fullRepaint = true;  // the dashboard repaints in full once the menu closes
+  s_splash = true;
+  s_menuActive = true;
+  menuViewShow(tft, isLandscape(), items, selected, alert);
+}
+
+void displayMenuHold(uint32_t heldMs) {
+  if (s_menuActive) menuViewHold(heldMs);
+}
+
 void displayShowMessage(const String &title, const String &detail) {
   // Only reset/restart notices call this. Make the deliberate notice visible
   // even when the reset was requested from the insertion lock.
@@ -526,6 +560,7 @@ void displayShowMessage(const String &title, const String &detail) {
   s_joinActive = false;
   s_fullRepaint = true;
   s_splash = true;
+  releaseMenu();
   displayWake();
   tft.fillScreen(C_BG);
   drawCorners(C_RED);
@@ -551,8 +586,31 @@ static bool s_running = false;
 static bool s_armed = false;
 static int8_t s_armedShown = -1;
 
+static void paintTorch() {
+  s_fullRepaint = false;
+  s_splash = false;
+  s_joinActive = false;
+  releaseMenu();
+  tft.fillScreen(rgb(0xFF, 0xFF, 0xFF));
+}
+
+void displaySetTorch(bool on) {
+  if (on == s_torch) return;
+  s_torch = on;
+  s_fullRepaint = true;  // the next update paints the dashboard back
+  applyBacklight();
+  if (on) paintTorch();  // white at once, not at the next dashboard refresh
+}
+
+bool displayGetTorch() { return s_torch; }
+
 void displayUpdate(const DisplayInfo &info) {
   applyBacklight();
+
+  if (s_torch) {
+    if (s_fullRepaint || s_splash) paintTorch();
+    return;
+  }
 
   if (s_fullRepaint || s_splash) {
     s_fullRepaint = false;
@@ -590,7 +648,7 @@ void displayUpdate(const DisplayInfo &info) {
 
   if (info.clients != s_clients) {
     s_clients = info.clients;
-    setField(F_CLIENTS, String(info.clients), info.clients > 0 ? C_CYAN : C_DIM);
+    setField(F_CLIENTS, String(info.clients), info.clients > 0 ? C_EDGE : C_DIM);
   }
 
   String state;
@@ -604,7 +662,7 @@ void displayUpdate(const DisplayInfo &info) {
     default:            state = "STANDBY"; color = C_DIM; break;
   }
   if (!info.toolState.isEmpty()) {
-    state = info.toolState; color = info.toolError ? C_RED : C_CYAN;
+    state = info.toolState; color = info.toolError ? C_RED : C_EDGE;
   }
   setField(F_STATE, state, color);
 
@@ -768,7 +826,11 @@ static void ledTick() {
 
 void displayTick() {
   ledTick();
-  if (s_splash) return;
+  if (s_menuActive) {
+    menuViewTick(tft, isLandscape());
+    return;
+  }
+  if (s_splash || s_torch) return;
 
   uint32_t now = millis();
   if (now < s_nextFrame) return;
@@ -800,7 +862,7 @@ void displayTick() {
   const int16_t by = isLandscape() ? 55 : 131;
   bool fast = s_running || s_armed;
   bool on = fast ? ((s_blink / 2) & 1) : ((s_blink / 8) & 1);
-  uint16_t mark = s_armed ? C_MAGENTA : (s_running ? C_AMBER : C_CYAN);
+  uint16_t mark = s_armed ? C_MAGENTA : (s_running ? C_AMBER : C_EDGE);
   tft.fillRect(bx, by, 5, 5, on ? mark : C_BG);
 
   if (s_running) {

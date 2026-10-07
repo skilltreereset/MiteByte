@@ -16,6 +16,13 @@ validation and display sources against fake hardware IO. It checks gesture
 conflicts, button holds, screen light gating, immediate LED blanking, queued UI
 hard lock and persistence failures, automatic startup with standby disabled,
 hard-lock precedence and reset.
+The menu view check compiles the production `menu_view.cpp` against a fake panel
+that keeps what was pushed to it. It checks the picture in landscape and
+portrait (frame, ruler, labels, the running-tool colour, alert and hold fill),
+that a rolling list settles to the same picture as a direct draw, that a
+settled list repaints only the strips touching the frame (marquee, hold fill),
+that nothing is pushed while nothing changes, and that the view never touches
+the heap.
 It also checks the production tool registry's lifecycle, autostart/lock
 precedence, storage failures, malformed RNDIS messages and DNS/EDNS packet bounds.
 RNDIS checks accept Windows' 1024-byte response requests while bounding incoming

@@ -25,6 +25,7 @@ enum LockEvent : uint8_t {
   LOCK_EVT_SCREEN_LOCK_EXITED,
   LOCK_EVT_HARD_LOCKED,         // stop services and return USB to storage only
   LOCK_EVT_TAP_ONLINE,          // a tap while ONLINE: show the join screen
+  LOCK_EVT_HOLD_ONLINE,         // released after MENU_HOLD_MS while ONLINE
 };
 
 // Call once at boot, after settings are loaded and the display/USB drive are
@@ -34,6 +35,11 @@ void lockBegin(const String &unlockSequence, const String &hardlockSequence,
                uint16_t longPressMs, bool hardlockPendingThisBoot,
                bool hardlockEnabled, uint8_t hardlockReinserts,
                bool standbyOnBoot = true);
+
+// How long the current press has lasted, 0 while the button is up. The hold
+// events fire only on release, so a screen that wants to show the hold as it
+// happens (the menu's fill) reads it here.
+uint32_t lockHeldMs();
 
 // True while in insertion-lock or hard-lock standby.
 bool lockIsLocked();
