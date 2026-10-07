@@ -1,5 +1,6 @@
 #include "ui_display.h"
 #include "config.h"
+#include "display_color.h"
 
 #include <Adafruit_GFX.h>
 #include <Adafruit_ST7735.h>
@@ -8,14 +9,6 @@
 // Espressif ships a QR encoder inside the ESP32 core. Note that its
 // header wins over any library also called qrcode.h.
 #include <qrcode.h>
-
-static constexpr uint16_t rgb(uint8_t r, uint8_t g, uint8_t b) {
-#if TFT_SWAP_RED_BLUE
-  return ((uint16_t)(b & 0xF8) << 8) | ((uint16_t)(g & 0xFC) << 3) | (r >> 3);
-#else
-  return ((uint16_t)(r & 0xF8) << 8) | ((uint16_t)(g & 0xFC) << 3) | (b >> 3);
-#endif
-}
 
 static constexpr uint16_t C_BG      = rgb(0x00, 0x00, 0x00);
 static constexpr uint16_t C_TEXT    = rgb(0xE6, 0xFB, 0xF6);
@@ -63,6 +56,15 @@ static uint32_t s_wakeUntil = 0;
 static bool s_fullRepaint = true;
 static bool s_splash = false;
 static bool s_torch = false;
+
+// True while the menu owns the screen. Anything else that paints the full
+// screen calls releaseMenu(), which also stops the animation.
+static bool s_menuActive = false;
+
+static void releaseMenu() {
+  s_menuActive = false;
+  menuViewHide();
+}
 
 // The backlight PWM is attached lazily, the first time the backlight is
 // actually lit. Until then the pin is held off as plain GPIO, so boot and
@@ -293,6 +295,7 @@ static void drawDashed(int16_t y, int16_t from, int16_t to, uint16_t color) {
 }
 
 static void drawChrome(const String &arrangement, const String &name) {
+  releaseMenu();
   tft.fillScreen(C_BG);
   drawCorners(C_CYAN);
 
@@ -351,6 +354,7 @@ void displaySetRotation(uint8_t rotation) {
   if (rotation > 3 || rotation == s_rotation) return;
   s_rotation = rotation;
   tft.setRotation(s_rotation);
+  releaseMenu();
   tft.fillScreen(C_BG);
   s_fullRepaint = true;
 }
@@ -501,6 +505,7 @@ void displayShowJoin(const String &ssid, const String &password) {
 
   s_fullRepaint = true;
   s_splash = true;
+  releaseMenu();
   applyBacklight();
   tft.fillScreen(C_BG);
 
@@ -533,6 +538,22 @@ void displayShowJoin(const String &ssid, const String &password) {
   }
 }
 
+// ---- Menu ----------------------------------------------------------------
+
+void displayShowMenu(const std::vector<MenuItem> &items, size_t selected,
+                     const char *alert) {
+  applyBacklight();
+  s_joinActive = false;
+  s_fullRepaint = true;  // the dashboard repaints in full once the menu closes
+  s_splash = true;
+  s_menuActive = true;
+  menuViewShow(tft, isLandscape(), items, selected, alert);
+}
+
+void displayMenuHold(uint32_t heldMs) {
+  if (s_menuActive) menuViewHold(heldMs);
+}
+
 void displayShowMessage(const String &title, const String &detail) {
   // Only reset/restart notices call this. Make the deliberate notice visible
   // even when the reset was requested from the insertion lock.
@@ -540,6 +561,7 @@ void displayShowMessage(const String &title, const String &detail) {
   s_joinActive = false;
   s_fullRepaint = true;
   s_splash = true;
+  releaseMenu();
   displayWake();
   tft.fillScreen(C_BG);
   drawCorners(C_RED);
@@ -582,6 +604,7 @@ void displayUpdate(const DisplayInfo &info) {
       s_fullRepaint = false;
       s_splash = false;
       s_joinActive = false;
+      releaseMenu();
       tft.fillScreen(rgb(0xFF, 0xFF, 0xFF));
     }
     return;
@@ -801,6 +824,10 @@ static void ledTick() {
 
 void displayTick() {
   ledTick();
+  if (s_menuActive) {
+    menuViewTick(tft, isLandscape());
+    return;
+  }
   if (s_splash || s_torch) return;
 
   uint32_t now = millis();

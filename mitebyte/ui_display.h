@@ -1,6 +1,8 @@
 #pragma once
 #include <Arduino.h>
 #include "macro.h"
+#include "menu_view.h"
+#include <vector>
 
 struct DisplayInfo {
   String ssid;
@@ -23,6 +25,19 @@ void displayShowJoin(const String &ssid, const String &password);
 void displayShowMessage(const String &title, const String &detail);
 
 void displayUpdate(const DisplayInfo &info);
+
+// The button menu (see menu_view.h). Moving to the next entry rolls the list,
+// animated by displayTick(). `items` is read by reference on every frame, so
+// the caller keeps it alive while the menu is open; `alert` is a string
+// literal that replaces the selected label in red until the next call. The
+// next displayUpdate() replaces the menu, so callers stop updating the
+// dashboard while it is open.
+void displayShowMenu(const std::vector<MenuItem> &items, size_t selected,
+                     const char *alert = nullptr);
+
+// How long the button has been held, 0 when it is up: the menu fills its frame
+// once the hold is long enough to select.
+void displayMenuHold(uint32_t heldMs);
 
 void displayTick();
 

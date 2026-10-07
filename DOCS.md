@@ -91,6 +91,24 @@ button for ten seconds in any state: settings, pending hard lock and the armed
 boot run are cleared. The script library is kept. Unlock with the default
 gesture again to reach the built-in network.
 
+### Menu on the device
+
+While online, hold the button for 0.4 seconds and release (before two seconds,
+which locks the screen) to open the menu: **BACK**, then the scripts, then the
+tools. It opens on whatever is running, the running tool or script (the first
+by name if there are several), and otherwise on the first script. The
+selection sits in a frame in the middle, with the other entries stacked as
+cards above and below it and a ruler down the left edge; the list rolls
+through the frame, and a long name slides back and forth. A short press moves
+to the next entry. Holding the button for 0.4 seconds fills the frame pink in
+a circle growing from its middle, and the label turns white inside it: release
+then to run a script, with the same start delay as the web UI, or to switch a
+tool on or off. A running tool is shown in pink, and reads **STOP** when it is
+the selection. **BACK**, or four seconds untouched, closes the menu. A refused
+choice shows its reason in pink in place of the name: **STOP TOOL** while
+another tool is on, **BUSY** while a script is running. The menu draws in both
+landscape and portrait.
+
 ### Screen lock and hard lock
 
 Hold the button for two seconds while online, or use the web lock button, to
