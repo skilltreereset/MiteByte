@@ -13,7 +13,6 @@
 static constexpr uint16_t C_BG      = rgb(0x00, 0x00, 0x00);
 static constexpr uint16_t C_TEXT    = rgb(0xE6, 0xFB, 0xF6);
 static constexpr uint16_t C_DIM     = rgb(0x3E, 0x6B, 0x63);
-static constexpr uint16_t C_CYAN    = rgb(0x00, 0xE5, 0xD0);
 static constexpr uint16_t C_MAGENTA = rgb(0xFF, 0x2D, 0x8A);
 static constexpr uint16_t C_LIME    = rgb(0xB6, 0xFF, 0x3C);
 static constexpr uint16_t C_RED     = rgb(0xFF, 0x3B, 0x30);
@@ -212,9 +211,9 @@ static void paintField(FieldId id, bool glitched) {
   if (glitched) {
 
     putText(f.x - GHOST_DX, f.y, shown, C_MAGENTA, f.size);
-    putText(f.x + GHOST_DX, f.y, shown, C_CYAN, f.size);
+    putText(f.x + GHOST_DX, f.y, shown, C_EDGE, f.size);
   }
-  putText(f.x, f.y, shown, f.decode ? C_CYAN : f.color, f.size);
+  putText(f.x, f.y, shown, f.decode ? C_EDGE : f.color, f.size);
 }
 
 static void setField(FieldId id, const String &text, uint16_t color) {
@@ -233,12 +232,12 @@ static void placeFields() {
   if (isLandscape()) {
     s_f[F_SSID]    = {40, 21, 106, 8, 1, C_TEXT, s_f[F_SSID].text, 0};
     s_f[F_IP]      = {40, 32, 106, 8, 1, C_DIM, s_f[F_IP].text, 0};
-    s_f[F_CLIENTS] = {56, 50, 26, 16, 2, C_CYAN, s_f[F_CLIENTS].text, 0};
+    s_f[F_CLIENTS] = {56, 50, 26, 16, 2, C_EDGE, s_f[F_CLIENTS].text, 0};
     s_f[F_STATE]   = {92, 54, 54, 8, 1, C_DIM, s_f[F_STATE].text, 0};
   } else {
     s_f[F_SSID]    = {P_LEFT, 42, 68, 8, 1, C_TEXT, s_f[F_SSID].text, 0};
     s_f[F_IP]      = {P_LEFT, 66, 68, 8, 1, C_DIM, s_f[F_IP].text, 0};
-    s_f[F_CLIENTS] = {P_LEFT, 98, 40, 24, 3, C_CYAN, s_f[F_CLIENTS].text, 0};
+    s_f[F_CLIENTS] = {P_LEFT, 98, 40, 24, 3, C_EDGE, s_f[F_CLIENTS].text, 0};
     s_f[F_STATE]   = {18, 130, 56, 8, 1, C_DIM, s_f[F_STATE].text, 0};
   }
 }
@@ -284,7 +283,7 @@ static void paintSdState(int8_t state) {
   const int16_t x = isLandscape() ? 96 : 60;
   const int16_t y = isLandscape() ? 2 : 17;
   tft.fillRect(x, y, 10, 13, C_BG);
-  if (state == 1) drawSdIcon(x, y, C_CYAN);
+  if (state == 1) drawSdIcon(x, y, C_EDGE);
   else if (state == 2) drawSdIcon(x, y, C_AMBER);
 }
 
@@ -297,13 +296,13 @@ static void drawDashed(int16_t y, int16_t from, int16_t to, uint16_t color) {
 static void drawChrome(const String &arrangement, const String &name) {
   releaseMenu();
   tft.fillScreen(C_BG);
-  drawCorners(C_CYAN);
+  drawCorners(C_EDGE);
 
   String badge = arrangement;
 
   if (isLandscape()) {
 
-    putText(L_LEFT, 4, "//" + truncate(name, 13), C_CYAN, 1);
+    putText(L_LEFT, 4, "//" + truncate(name, 13), C_EDGE, 1);
     putText(L_RIGHT - badge.length() * 6, 4, badge, C_MAGENTA, 1);
     tft.drawFastHLine(L_LEFT, 15, L_RIGHT - L_LEFT, C_DIM);
     putText(L_LEFT, 21, "NET", C_DIM, 1);
@@ -311,7 +310,7 @@ static void drawChrome(const String &arrangement, const String &name) {
     drawDashed(44, L_LEFT, L_RIGHT, C_DIM);
     putText(L_LEFT, 54, "NODES", C_DIM, 1);
   } else {
-    putText(P_LEFT + 8, 4, "//" + truncate(name, 7), C_CYAN, 1);
+    putText(P_LEFT + 8, 4, "//" + truncate(name, 7), C_EDGE, 1);
     tft.drawFastHLine(P_LEFT, 15, P_RIGHT - P_LEFT, C_DIM);
     putText(P_LEFT, 22, badge, C_MAGENTA, 1);
     putText(P_LEFT, 32, "NET", C_DIM, 1);
@@ -514,7 +513,7 @@ void displayShowJoin(const String &ssid, const String &password) {
   if (!coded) {
     // Credentials too long for anything that fits in 80 px. Text only.
     drawCorners(C_MAGENTA);
-    putText(14, 4, "//ACCESS", C_CYAN, 1);
+    putText(14, 4, "//ACCESS", C_EDGE, 1);
     tft.drawFastHLine(8, 15, screenW() - 16, C_DIM);
     putText(8, 22, "SSID", C_DIM, 1);
     putText(8, 32, truncate(ssid, charsPerLine()), C_TEXT, 1);
@@ -525,7 +524,7 @@ void displayShowJoin(const String &ssid, const String &password) {
 
   if (isLandscape()) {
     // The QR ends at x=76, so the column starts at 79 and holds 13 per line.
-    putText(79, 8, "SCAN", C_CYAN, 1);
+    putText(79, 8, "SCAN", C_EDGE, 1);
     putText(79, 20, "SSID", C_DIM, 1);
     putWrapped(79, 30, ssid, C_TEXT, 13);
     putText(79, 52, "KEY", C_DIM, 1);
@@ -646,7 +645,7 @@ void displayUpdate(const DisplayInfo &info) {
 
   if (info.clients != s_clients) {
     s_clients = info.clients;
-    setField(F_CLIENTS, String(info.clients), info.clients > 0 ? C_CYAN : C_DIM);
+    setField(F_CLIENTS, String(info.clients), info.clients > 0 ? C_EDGE : C_DIM);
   }
 
   String state;
@@ -660,7 +659,7 @@ void displayUpdate(const DisplayInfo &info) {
     default:            state = "STANDBY"; color = C_DIM; break;
   }
   if (!info.toolState.isEmpty()) {
-    state = info.toolState; color = info.toolError ? C_RED : C_CYAN;
+    state = info.toolState; color = info.toolError ? C_RED : C_EDGE;
   }
   setField(F_STATE, state, color);
 
@@ -860,7 +859,7 @@ void displayTick() {
   const int16_t by = isLandscape() ? 55 : 131;
   bool fast = s_running || s_armed;
   bool on = fast ? ((s_blink / 2) & 1) : ((s_blink / 8) & 1);
-  uint16_t mark = s_armed ? C_MAGENTA : (s_running ? C_AMBER : C_CYAN);
+  uint16_t mark = s_armed ? C_MAGENTA : (s_running ? C_AMBER : C_EDGE);
   tft.fillRect(bx, by, 5, 5, on ? mark : C_BG);
 
   if (s_running) {
